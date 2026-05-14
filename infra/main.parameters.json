@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "name": {
+      "value": "voiceliveqa"
+    },
+    "location": {
+      "value": "eastus2"
+    },
+    "backendImage": {
+      "value": "ghcr.io/placeholder/backend:latest"
+    },
+    "questionServiceImage": {
+      "value": "ghcr.io/placeholder/question-service:latest"
+    },
+    "openAiDeploymentName": {
+      "value": "gpt-4o-realtime-preview"
+    },
+    "openAiTextDeploymentName": {
+      "value": "gpt-4.1"
+    },
+    "voiceName": {
+      "value": "en-US-Aria:DragonHDLatestNeural"
+    }
+  }
+}

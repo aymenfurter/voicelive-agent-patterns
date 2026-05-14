@@ -1,0 +1,70 @@
+baseURL = "/"
+languageCode = "en-us"
+title = "Voice Live API — Orchestration Patterns"
+enableRobotsTXT = true
+disableKinds = ["taxonomy", "term"]
+
+[params]
+  description = "A code-driven walkthrough of agentic orchestration patterns built on top of the Azure Voice Live API."
+  repo = "https://github.com/Azure-Samples/voicelive-agent-patterns"
+
+[markup]
+  [markup.goldmark.renderer]
+    unsafe = true
+  [markup.highlight]
+    style = "monokai"
+    noClasses = true
+    lineNos = false
+    tabWidth = 2
+
+[menu]
+  [[menu.main]]
+    name = "Introduction"
+    url = "/"
+    weight = 10
+  [[menu.main]]
+    name = "Origins & Lineage"
+    url = "/origins/"
+    weight = 15
+  [[menu.main]]
+    name = "Architecture"
+    url = "/architecture/"
+    weight = 20
+  [[menu.main]]
+    name = "Session Lifecycle"
+    url = "/session-lifecycle/"
+    weight = 30
+  [[menu.main]]
+    name = "Chat-Supervisor"
+    url = "/chat-supervisor/"
+    weight = 40
+  [[menu.main]]
+    name = "Sequential Handoff"
+    url = "/sequential-handoff/"
+    weight = 50
+  [[menu.main]]
+    name = "Validation Flow"
+    url = "/validation/"
+    weight = 60
+  [[menu.main]]
+    name = "Events & Compaction"
+    url = "/events-compaction/"
+    weight = 70
+  [[menu.main]]
+    name = "App vs Developer Mode"
+    url = "/app-mode/"
+    weight = 80
+  [[menu.main]]
+    name = "Evals"
+    url = "/evals/"
+    weight = 85
+  [[menu.main]]
+    name = "Integration Guide"
+    url = "/integration/"
+    weight = 90
+
+[security]
+  [security.funcs]
+    getenv = ['^HUGO_', '^CI$']
+  [security.exec]
+    allow = ['^(dart-)?sass(-embedded)?$', '^go$', '^npx$', '^postcss$']

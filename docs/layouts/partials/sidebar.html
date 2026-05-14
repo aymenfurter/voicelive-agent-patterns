@@ -1,0 +1,11 @@
+<aside class="sidebar">
+  <nav class="sidebar__nav">
+    {{ range .Site.Menus.main }}
+    <a class="sidebar__link{{ if eq $.RelPermalink (.URL | relURL) }} sidebar__link--active{{ end }}"
+       href="{{ .URL | relURL }}">
+      <span class="sidebar__link-num">{{ printf "%02d" (div .Weight 10) }}</span>
+      <span>{{ .Name }}</span>
+    </a>
+    {{ end }}
+  </nav>
+</aside>

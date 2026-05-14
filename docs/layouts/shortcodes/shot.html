@@ -1,0 +1,9 @@
+{{- $src := .Get "src" -}}
+{{- $alt := .Get "alt" | default "" -}}
+{{- $caption := .Get "caption" | default "" -}}
+<figure class="shot">
+  <a href="{{ $src | relURL }}" target="_blank" rel="noopener">
+    <img src="{{ $src | relURL }}" alt="{{ $alt }}" loading="lazy" />
+  </a>
+  {{ with $caption }}<figcaption class="shot__cap">{{ . | markdownify }}</figcaption>{{ end }}
+</figure>

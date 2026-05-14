@@ -1,0 +1,19 @@
+name: voicelive-qa
+metadata:
+  template: voicelive-qa@0.0.1
+services:
+  backend:
+    project: ./backend
+    host: containerapp
+    language: python
+    module: app
+  question-service:
+    project: ./question-service
+    host: containerapp
+    language: python
+    module: app
+  frontend:
+    project: ./frontend
+    host: containerapp
+    language: ts
+    dist: dist

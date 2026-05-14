@@ -1,0 +1,374 @@
+<!doctype html><html lang=en><head><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Integration guide · Voice Live API — Orchestration Patterns</title>
+<meta name=description content="A code-driven walkthrough of agentic orchestration patterns built on top of the Azure Voice Live API."><link rel=stylesheet href=/css/app.css><link rel=preconnect href=https://fonts.googleapis.com><link rel=preconnect href=https://fonts.gstatic.com crossorigin><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel=stylesheet></head><body><header class=topbar><a class=topbar__brand href=/><span class=topbar__brand-text><span class=topbar__brand-name>Voice Live API</span>
+<span class=topbar__brand-sub>Orchestration Patterns</span></span></a><nav class=topbar__actions><a href=https://github.com/Azure-Samples/voicelive-agent-patterns target=_blank rel=noopener>GitHub</a></nav></header><div class=layout><aside class=sidebar><nav class=sidebar__nav><a class=sidebar__link href=/><span class=sidebar__link-num>01</span>
+<span>Introduction</span>
+</a><a class=sidebar__link href=/origins/><span class=sidebar__link-num>01</span>
+<span>Origins & Lineage</span>
+</a><a class=sidebar__link href=/architecture/><span class=sidebar__link-num>02</span>
+<span>Architecture</span>
+</a><a class=sidebar__link href=/session-lifecycle/><span class=sidebar__link-num>03</span>
+<span>Session Lifecycle</span>
+</a><a class=sidebar__link href=/chat-supervisor/><span class=sidebar__link-num>04</span>
+<span>Chat-Supervisor</span>
+</a><a class=sidebar__link href=/sequential-handoff/><span class=sidebar__link-num>05</span>
+<span>Sequential Handoff</span>
+</a><a class=sidebar__link href=/validation/><span class=sidebar__link-num>06</span>
+<span>Validation Flow</span>
+</a><a class=sidebar__link href=/events-compaction/><span class=sidebar__link-num>07</span>
+<span>Events & Compaction</span>
+</a><a class=sidebar__link href=/app-mode/><span class=sidebar__link-num>08</span>
+<span>App vs Developer Mode</span>
+</a><a class=sidebar__link href=/evals/><span class=sidebar__link-num>08</span>
+<span>Evals</span>
+</a><a class="sidebar__link sidebar__link--active" href=/integration/><span class=sidebar__link-num>09</span>
+<span>Integration Guide</span></a></nav></aside><main class=content><article class=doc><header class=doc__header><div class=doc__eyebrow>Make it yours</div><h1 class=doc__title>Integration guide</h1></header><div class=doc__body><p>The bundled question service is a placeholder. It hosts the intake
+catalog and an answer validator so the demo runs out of the box, but in
+your build it will be replaced by whatever already owns your business
+data: a CRM, a policy admin system, an EHR, an internal microservice,
+or a stack of them. This page walks you through the two seams the
+sample is designed around.</p><h2 id=seam-1-replace-the-question-service>Seam 1: replace the question service</h2><p>The backend talks to the question service through a single thin module:
+three async functions, one HTTP base URL.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>The entire backend → question-service contract</span>
+<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/question_client.py#L28-L73 target=_blank rel=noopener><code>backend/question_client.py</code>
+<span class=coderef__lines>L28–L73</span></a></figcaption><div class=coderef__body data-start=28><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">28
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">29
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">30
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">31
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">32
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">33
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">34
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">35
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">36
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">37
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">38
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">39
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">40
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">41
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">42
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">43
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">44
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">45
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">46
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">47
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">48
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">49
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">50
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">51
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">52
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">53
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">54
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">55
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">56
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">57
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">58
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">59
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">60
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">61
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">62
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">63
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">64
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">65
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">66
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">67
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">68
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">69
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">70
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">71
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">72
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">73
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>get_questions</span>() <span style=color:#f92672>-&gt;</span> list[dict[str, Any]]:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;Fetch all available questions from the question service.&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>try</span>:
+</span></span><span style=display:flex><span>        client <span style=color:#f92672>=</span> _get_client()
+</span></span><span style=display:flex><span>        response <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> client<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;/questions&#34;</span>)
+</span></span><span style=display:flex><span>        response<span style=color:#f92672>.</span>raise_for_status()
+</span></span><span style=display:flex><span>        data <span style=color:#f92672>=</span> response<span style=color:#f92672>.</span>json()
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> isinstance(data, dict) <span style=color:#f92672>and</span> <span style=color:#e6db74>&#34;questions&#34;</span> <span style=color:#f92672>in</span> data:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> data[<span style=color:#e6db74>&#34;questions&#34;</span>]
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> data <span style=color:#66d9ef>if</span> isinstance(data, list) <span style=color:#66d9ef>else</span> []
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>except</span> httpx<span style=color:#f92672>.</span>HTTPError <span style=color:#66d9ef>as</span> exc:
+</span></span><span style=display:flex><span>        logger<span style=color:#f92672>.</span>error(<span style=color:#e6db74>&#34;Failed to fetch questions: </span><span style=color:#e6db74>%s</span><span style=color:#e6db74>&#34;</span>, exc)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> []
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>get_questions_by_category</span>(category: str) <span style=color:#f92672>-&gt;</span> list[dict[str, Any]]:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;Fetch questions for a specific claim category.&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>try</span>:
+</span></span><span style=display:flex><span>        client <span style=color:#f92672>=</span> _get_client()
+</span></span><span style=display:flex><span>        response <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> client<span style=color:#f92672>.</span>get(<span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;/questions/</span><span style=color:#e6db74>{</span>category<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>)
+</span></span><span style=display:flex><span>        response<span style=color:#f92672>.</span>raise_for_status()
+</span></span><span style=display:flex><span>        data <span style=color:#f92672>=</span> response<span style=color:#f92672>.</span>json()
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> isinstance(data, dict) <span style=color:#f92672>and</span> <span style=color:#e6db74>&#34;questions&#34;</span> <span style=color:#f92672>in</span> data:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> data[<span style=color:#e6db74>&#34;questions&#34;</span>]
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> data <span style=color:#66d9ef>if</span> isinstance(data, list) <span style=color:#66d9ef>else</span> []
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>except</span> httpx<span style=color:#f92672>.</span>HTTPError <span style=color:#66d9ef>as</span> exc:
+</span></span><span style=display:flex><span>        logger<span style=color:#f92672>.</span>error(<span style=color:#e6db74>&#34;Failed to fetch questions for category &#39;</span><span style=color:#e6db74>%s</span><span style=color:#e6db74>&#39;: </span><span style=color:#e6db74>%s</span><span style=color:#e6db74>&#34;</span>, category, exc)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> []
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>validate_answer</span>(question_id: str, answer: str) <span style=color:#f92672>-&gt;</span> dict[str, Any]:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;Validate a user&#39;s answer against the question service.&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>try</span>:
+</span></span><span style=display:flex><span>        client <span style=color:#f92672>=</span> _get_client()
+</span></span><span style=display:flex><span>        response <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> client<span style=color:#f92672>.</span>post(
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;/validate&#34;</span>,
+</span></span><span style=display:flex><span>            json<span style=color:#f92672>=</span>{<span style=color:#e6db74>&#34;question_id&#34;</span>: question_id, <span style=color:#e6db74>&#34;answer&#34;</span>: answer},
+</span></span><span style=display:flex><span>        )
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> response<span style=color:#f92672>.</span>status_code <span style=color:#f92672>==</span> <span style=color:#ae81ff>404</span>:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> {<span style=color:#e6db74>&#34;valid&#34;</span>: <span style=color:#66d9ef>False</span>, <span style=color:#e6db74>&#34;unknown_question&#34;</span>: <span style=color:#66d9ef>True</span>,
+</span></span><span style=display:flex><span>                    <span style=color:#e6db74>&#34;message&#34;</span>: <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Question &#39;</span><span style=color:#e6db74>{</span>question_id<span style=color:#e6db74>}</span><span style=color:#e6db74>&#39; not in service.&#34;</span>}
+</span></span><span style=display:flex><span>        response<span style=color:#f92672>.</span>raise_for_status()
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> response<span style=color:#f92672>.</span>json()
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>except</span> httpx<span style=color:#f92672>.</span>HTTPError <span style=color:#66d9ef>as</span> exc:
+</span></span><span style=display:flex><span>        logger<span style=color:#f92672>.</span>error(<span style=color:#e6db74>&#34;Failed to validate answer: </span><span style=color:#e6db74>%s</span><span style=color:#e6db74>&#34;</span>, exc)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> {<span style=color:#e6db74>&#34;valid&#34;</span>: <span style=color:#66d9ef>False</span>, <span style=color:#e6db74>&#34;error&#34;</span>: str(exc)}</span></span></code></pre></td></tr></table></div></div></div></figure><p>To swap it out, you have two choices.</p><h3 id=option-a-keep-the-same-http-shape>Option A: keep the same HTTP shape</h3><p>The minimal-change path. Stand up your own service that exposes:</p><table><thead><tr><th>Method</th><th>Path</th><th>Body</th><th>Response</th></tr></thead><tbody><tr><td><code>GET</code></td><td><code>/questions</code></td><td>—</td><td><code>{"questions": [...]}</code> (top-level intake)</td></tr><tr><td><code>GET</code></td><td><code>/questions/&lt;category></code></td><td>—</td><td><code>{"category": "...", "questions": [...]}</code></td></tr><tr><td><code>POST</code></td><td><code>/validate</code></td><td><code>{"question_id": "...", "answer": "..."}</code></td><td><code>{"valid": bool, "reason": "...", "clarifying_question": "..."}</code></td></tr></tbody></table><p>Point <code>Config.QUESTION_SERVICE_URL</code> at it and you are done. No backend
+code changes. Use this when you can put a thin adapter in front of your
+real system.</p><h3 id=option-b-replace-the-client>Option B: replace the client</h3><p>Rewrite <code>question_client.py</code> to talk to your real system directly: gRPC,
+SDK, message bus, whatever. The function signatures the patterns import
+(<code>get_questions_by_category</code>, <code>validate_answer</code>, <code>submit_claim_data</code>)
+are the contract you must preserve. Return shape matters.</p><aside class="callout callout--warn"><div class=callout__body>Both patterns assume <code>validate_answer</code> returns at least <code>{"valid": bool}</code>.
+The Chat-Supervisor pattern additionally consumes the entire validator
+response as context for its supervisor escalation, so passing through
+a <code>reason</code> field will produce noticeably better LLM judgments.</div></aside><h2 id=seam-2-add-a-new-orchestration-pattern>Seam 2: add a new orchestration pattern</h2><p>Patterns are registered by name. Drop a new module under
+<code>backend/patterns/</code> that subclasses <code>OrchestrationPattern</code>, decorate
+it, and the frontend pattern picker (and the <code>?pattern=</code> query string)
+discover it automatically.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>The pattern interface, in practice</span>
+<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/patterns/chat_supervisor.py#L83-L120 target=_blank rel=noopener><code>backend/patterns/chat_supervisor.py</code>
+<span class=coderef__lines>L83–L120</span></a></figcaption><div class=coderef__body data-start=83><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 83
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 84
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 85
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 86
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 87
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 88
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 89
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 90
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 91
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 92
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 93
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 94
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 95
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 96
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 97
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 98
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 99
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">100
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">101
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">102
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">103
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">104
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">105
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">106
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">107
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">108
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">109
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">110
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">111
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">112
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">113
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">114
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">115
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">116
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">117
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">118
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">119
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">120
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>ChatSupervisorPattern</span>(OrchestrationPattern):
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;Pattern where realtime voice defers business logic to a text supervisor.&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> __init__(self, supervisor: SupervisorClient <span style=color:#f92672>|</span> <span style=color:#66d9ef>None</span> <span style=color:#f92672>=</span> <span style=color:#66d9ef>None</span>) <span style=color:#f92672>-&gt;</span> <span style=color:#66d9ef>None</span>:
+</span></span><span style=display:flex><span>        super()<span style=color:#f92672>.</span>__init__()
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>_supervisor: SupervisorClient <span style=color:#f92672>=</span> supervisor <span style=color:#f92672>or</span> AzureOpenAISupervisorClient()
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>_session <span style=color:#f92672>=</span> ClaimSession()
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>_tool_context: str <span style=color:#f92672>|</span> <span style=color:#66d9ef>None</span> <span style=color:#f92672>=</span> <span style=color:#66d9ef>None</span>
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>register_tool(<span style=color:#e6db74>&#34;get_next_questions&#34;</span>, self<span style=color:#f92672>.</span>_handle_get_next_questions)
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>register_tool(<span style=color:#e6db74>&#34;validate_answer&#34;</span>, self<span style=color:#f92672>.</span>_handle_validate_answer)
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>register_tool(<span style=color:#e6db74>&#34;submit_claim_data&#34;</span>, self<span style=color:#f92672>.</span>_handle_submit_claim_data)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>handle_tool_call</span>(self, tool_name: str, arguments: dict[str, Any]) <span style=color:#f92672>-&gt;</span> dict[str, Any]:
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>_tool_context <span style=color:#f92672>=</span> tool_name
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>try</span>:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> <span style=color:#66d9ef>await</span> super()<span style=color:#f92672>.</span>handle_tool_call(tool_name, arguments)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>finally</span>:
+</span></span><span style=display:flex><span>            self<span style=color:#f92672>.</span>_tool_context <span style=color:#f92672>=</span> <span style=color:#66d9ef>None</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>get_session_config</span>(self) <span style=color:#f92672>-&gt;</span> dict[str, Any]:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> {
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;system_prompt&#34;</span>: self<span style=color:#f92672>.</span>get_system_prompt(),
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;tools&#34;</span>: self<span style=color:#f92672>.</span>get_tools(),
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;modality&#34;</span>: <span style=color:#e6db74>&#34;audio&#34;</span>,
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>get_system_prompt</span>(self) <span style=color:#f92672>-&gt;</span> str:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> SYSTEM_PROMPT
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>get_tools</span>(self) <span style=color:#f92672>-&gt;</span> list[dict[str, Any]]:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> TOOLS
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>on_event</span>(self, event_type: str, event_data: dict[str, Any]) <span style=color:#f92672>-&gt;</span> <span style=color:#66d9ef>None</span>:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> event_type <span style=color:#f92672>==</span> <span style=color:#e6db74>&#34;session.created&#34;</span>:
+</span></span><span style=display:flex><span>            logger<span style=color:#f92672>.</span>info(<span style=color:#e6db74>&#34;Chat-Supervisor session established&#34;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>_handle_get_next_questions</span>(self, arguments: dict[str, Any]) <span style=color:#f92672>-&gt;</span> dict[str, Any]:
+</span></span><span style=display:flex><span>        claim_type <span style=color:#f92672>=</span> arguments<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;claim_type&#34;</span>, <span style=color:#e6db74>&#34;auto&#34;</span>)</span></span></code></pre></td></tr></table></div></div></div></figure><p>Your subclass owns four things.</p><ol><li><code>get_session_config()</code> returns the dict that goes into the first
+<code>session.update</code>: voice, modality, system prompt, tools.</li><li><code>get_system_prompt()</code> and <code>get_tools()</code> are the active prompt and
+tool list. These can change over time. Sequential Handoff is exactly
+that.</li><li><code>handle_tool_call(name, args)</code> is your business logic. Return a dict.
+Setting <code>requires_session_update: True</code> triggers a handoff.</li><li><code>on_event(event_type, data)</code> and <code>emit(OutboundEvent)</code> are your
+hooks into the lifecycle. Use <code>emit</code> to surface custom events to the
+UI.</li></ol><h2 id=surfacing-your-own-data-in-app-mode>Surfacing your own data in App mode</h2><p>Every event you <code>emit</code> reaches the frontend through the same WebSocket.
+To show a custom card in App mode, emit a <code>tool.result</code> (or your own
+event type) and add a renderer to <code>AppModeDataGrid.tsx</code>.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>The data grid is the App-mode rendering of tool results</span>
+<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/frontend/src/components/appMode/AppModeDataGrid.tsx#L1-L71 target=_blank rel=noopener><code>frontend/src/components/appMode/AppModeDataGrid.tsx</code>
+<span class=coderef__lines>L1–L71</span></a></figcaption><div class=coderef__body data-start=1><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 1
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 2
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 3
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 4
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 5
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 6
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">25
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">26
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">27
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">28
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">29
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">30
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">31
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">32
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">33
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">34
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">35
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">36
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">37
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">38
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">39
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">40
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">41
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">42
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">43
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">44
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">45
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">46
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">47
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">48
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">49
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">50
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">51
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">52
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">53
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">54
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">55
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">56
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">57
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">58
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">59
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">60
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">61
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">62
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">63
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">64
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">65
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">66
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">67
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">68
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">69
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">70
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">71
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-tsx data-lang=tsx><span style=display:flex><span><span style=color:#66d9ef>import</span> <span style=color:#66d9ef>type</span> { <span style=color:#a6e22e>ReactNode</span> } <span style=color:#66d9ef>from</span> <span style=color:#e6db74>&#39;react&#39;</span>;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>import</span> <span style=color:#66d9ef>type</span> { <span style=color:#a6e22e>CategorizedFields</span> } <span style=color:#66d9ef>from</span> <span style=color:#e6db74>&#39;../../utils/fieldCategorization&#39;</span>;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>import</span> { <span style=color:#a6e22e>DataCell</span> } <span style=color:#66d9ef>from</span> <span style=color:#e6db74>&#39;./DataCell&#39;</span>;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>import</span> { <span style=color:#a6e22e>DataField</span> } <span style=color:#66d9ef>from</span> <span style=color:#e6db74>&#39;./DataField&#39;</span>;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>import</span> { <span style=color:#a6e22e>IncidentMap</span> } <span style=color:#66d9ef>from</span> <span style=color:#e6db74>&#39;./IncidentMap&#39;</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>interface</span> <span style=color:#a6e22e>Props</span> {
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>categorized</span>: <span style=color:#66d9ef>CategorizedFields</span>;
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>claimType</span>: <span style=color:#66d9ef>string</span> <span style=color:#f92672>|</span> <span style=color:#66d9ef>null</span>;
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>location</span>: <span style=color:#66d9ef>string</span> <span style=color:#f92672>|</span> <span style=color:#66d9ef>null</span>;
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>const</span> <span style=color:#a6e22e>ICON_POLICY</span>: <span style=color:#66d9ef>ReactNode</span> <span style=color:#f92672>=</span> &lt;<span style=color:#f92672>svg</span> <span style=color:#a6e22e>width</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;16&#34;</span> <span style=color:#a6e22e>height</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;16&#34;</span> <span style=color:#a6e22e>viewBox</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;0 0 24 24&#34;</span> <span style=color:#a6e22e>fill</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;none&#34;</span> <span style=color:#a6e22e>stroke</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;currentColor&#34;</span> <span style=color:#a6e22e>strokeWidth</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;1.8&#34;</span> <span style=color:#a6e22e>strokeLinecap</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;round&#34;</span> <span style=color:#a6e22e>strokeLinejoin</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;round&#34;</span>&gt;&lt;<span style=color:#f92672>rect</span> <span style=color:#a6e22e>x</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;3&#34;</span> <span style=color:#a6e22e>y</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;4&#34;</span> <span style=color:#a6e22e>width</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;18&#34;</span> <span style=color:#a6e22e>height</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;16&#34;</span> <span style=color:#a6e22e>rx</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;2&#34;</span> /&gt;&lt;<span style=color:#f92672>path</span> <span style=color:#a6e22e>d</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;M7 8h10M7 12h6&#34;</span> /&gt;&lt;/<span style=color:#f92672>svg</span>&gt;;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>const</span> <span style=color:#a6e22e>ICON_DATE</span>: <span style=color:#66d9ef>ReactNode</span> <span style=color:#f92672>=</span> &lt;<span style=color:#f92672>svg</span> <span style=color:#a6e22e>width</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;16&#34;</span> <span style=color:#a6e22e>height</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;16&#34;</span> <span style=color:#a6e22e>viewBox</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;0 0 24 24&#34;</span> <span style=color:#a6e22e>fill</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;none&#34;</span> <span style=color:#a6e22e>stroke</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;currentColor&#34;</span> <span style=color:#a6e22e>strokeWidth</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;1.8&#34;</span> <span style=color:#a6e22e>strokeLinecap</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;round&#34;</span> <span style=color:#a6e22e>strokeLinejoin</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;round&#34;</span>&gt;&lt;<span style=color:#f92672>rect</span> <span style=color:#a6e22e>x</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;3&#34;</span> <span style=color:#a6e22e>y</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;4&#34;</span> <span style=color:#a6e22e>width</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;18&#34;</span> <span style=color:#a6e22e>height</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;18&#34;</span> <span style=color:#a6e22e>rx</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;2&#34;</span> /&gt;&lt;<span style=color:#f92672>path</span> <span style=color:#a6e22e>d</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;M16 2v4M8 2v4M3 10h18&#34;</span> /&gt;&lt;<span style=color:#f92672>path</span> <span style=color:#a6e22e>d</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01&#34;</span> /&gt;&lt;/<span style=color:#f92672>svg</span>&gt;;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>const</span> <span style=color:#a6e22e>ICON_CONTACT</span>: <span style=color:#66d9ef>ReactNode</span> <span style=color:#f92672>=</span> &lt;<span style=color:#f92672>svg</span> <span style=color:#a6e22e>width</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;16&#34;</span> <span style=color:#a6e22e>height</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;16&#34;</span> <span style=color:#a6e22e>viewBox</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;0 0 24 24&#34;</span> <span style=color:#a6e22e>fill</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;none&#34;</span> <span style=color:#a6e22e>stroke</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;currentColor&#34;</span> <span style=color:#a6e22e>strokeWidth</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;1.8&#34;</span> <span style=color:#a6e22e>strokeLinecap</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;round&#34;</span> <span style=color:#a6e22e>strokeLinejoin</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;round&#34;</span>&gt;&lt;<span style=color:#f92672>circle</span> <span style=color:#a6e22e>cx</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;12&#34;</span> <span style=color:#a6e22e>cy</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;8&#34;</span> <span style=color:#a6e22e>r</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;4&#34;</span> /&gt;&lt;<span style=color:#f92672>path</span> <span style=color:#a6e22e>d</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;M4 21v-1a6 6 0 0112 0v1&#34;</span> /&gt;&lt;<span style=color:#f92672>path</span> <span style=color:#a6e22e>d</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;M16 3.13a4 4 0 010 7.75&#34;</span> /&gt;&lt;/<span style=color:#f92672>svg</span>&gt;;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>const</span> <span style=color:#a6e22e>ICON_VEHICLE</span>: <span style=color:#66d9ef>ReactNode</span> <span style=color:#f92672>=</span> &lt;<span style=color:#f92672>svg</span> <span style=color:#a6e22e>width</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;16&#34;</span> <span style=color:#a6e22e>height</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;16&#34;</span> <span style=color:#a6e22e>viewBox</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;0 0 24 24&#34;</span> <span style=color:#a6e22e>fill</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;none&#34;</span> <span style=color:#a6e22e>stroke</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;currentColor&#34;</span> <span style=color:#a6e22e>strokeWidth</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;1.8&#34;</span> <span style=color:#a6e22e>strokeLinecap</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;round&#34;</span> <span style=color:#a6e22e>strokeLinejoin</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;round&#34;</span>&gt;&lt;<span style=color:#f92672>path</span> <span style=color:#a6e22e>d</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;M5 17h14v-5l-2-5H7L5 12v5z&#34;</span> /&gt;&lt;<span style=color:#f92672>circle</span> <span style=color:#a6e22e>cx</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;7.5&#34;</span> <span style=color:#a6e22e>cy</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;17.5&#34;</span> <span style=color:#a6e22e>r</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;1.5&#34;</span> /&gt;&lt;<span style=color:#f92672>circle</span> <span style=color:#a6e22e>cx</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;16.5&#34;</span> <span style=color:#a6e22e>cy</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;17.5&#34;</span> <span style=color:#a6e22e>r</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;1.5&#34;</span> /&gt;&lt;/<span style=color:#f92672>svg</span>&gt;;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>const</span> <span style=color:#a6e22e>ICON_DETAILS</span>: <span style=color:#66d9ef>ReactNode</span> <span style=color:#f92672>=</span> &lt;<span style=color:#f92672>svg</span> <span style=color:#a6e22e>width</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;16&#34;</span> <span style=color:#a6e22e>height</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;16&#34;</span> <span style=color:#a6e22e>viewBox</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;0 0 24 24&#34;</span> <span style=color:#a6e22e>fill</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;none&#34;</span> <span style=color:#a6e22e>stroke</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;currentColor&#34;</span> <span style=color:#a6e22e>strokeWidth</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;1.8&#34;</span> <span style=color:#a6e22e>strokeLinecap</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;round&#34;</span> <span style=color:#a6e22e>strokeLinejoin</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;round&#34;</span>&gt;&lt;<span style=color:#f92672>path</span> <span style=color:#a6e22e>d</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z&#34;</span> /&gt;&lt;<span style=color:#f92672>polyline</span> <span style=color:#a6e22e>points</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;14 2 14 8 20 8&#34;</span> /&gt;&lt;<span style=color:#f92672>path</span> <span style=color:#a6e22e>d</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;M9 13h6M9 17h4&#34;</span> /&gt;&lt;/<span style=color:#f92672>svg</span>&gt;;
+</span></span><span style=display:flex><span><span style=color:#66d9ef>const</span> <span style=color:#a6e22e>ICON_LOCATION</span>: <span style=color:#66d9ef>ReactNode</span> <span style=color:#f92672>=</span> &lt;<span style=color:#f92672>svg</span> <span style=color:#a6e22e>width</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;16&#34;</span> <span style=color:#a6e22e>height</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;16&#34;</span> <span style=color:#a6e22e>viewBox</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;0 0 24 24&#34;</span> <span style=color:#a6e22e>fill</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;none&#34;</span> <span style=color:#a6e22e>stroke</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;currentColor&#34;</span> <span style=color:#a6e22e>strokeWidth</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;1.8&#34;</span> <span style=color:#a6e22e>strokeLinecap</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;round&#34;</span> <span style=color:#a6e22e>strokeLinejoin</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;round&#34;</span>&gt;&lt;<span style=color:#f92672>path</span> <span style=color:#a6e22e>d</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z&#34;</span> /&gt;&lt;<span style=color:#f92672>circle</span> <span style=color:#a6e22e>cx</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;12&#34;</span> <span style=color:#a6e22e>cy</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;9&#34;</span> <span style=color:#a6e22e>r</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;2.5&#34;</span> /&gt;&lt;/<span style=color:#f92672>svg</span>&gt;;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>export</span> <span style=color:#66d9ef>function</span> <span style=color:#a6e22e>AppModeDataGrid</span>({ <span style=color:#a6e22e>categorized</span>, <span style=color:#a6e22e>claimType</span>, <span style=color:#a6e22e>location</span> }<span style=color:#f92672>:</span> <span style=color:#a6e22e>Props</span>) {
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>const</span> <span style=color:#a6e22e>showPolicy</span> <span style=color:#f92672>=</span> <span style=color:#a6e22e>categorized</span>.<span style=color:#a6e22e>policyFields</span>.<span style=color:#a6e22e>length</span> <span style=color:#f92672>&gt;</span> <span style=color:#ae81ff>0</span> <span style=color:#f92672>||</span> <span style=color:#a6e22e>claimType</span>;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>const</span> <span style=color:#a6e22e>showLocation</span> <span style=color:#f92672>=</span> <span style=color:#a6e22e>categorized</span>.<span style=color:#a6e22e>locationFields</span>.<span style=color:#a6e22e>length</span> <span style=color:#f92672>&gt;</span> <span style=color:#ae81ff>0</span> <span style=color:#f92672>&amp;&amp;</span> <span style=color:#a6e22e>location</span>;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>return</span> (
+</span></span><span style=display:flex><span>    &lt;<span style=color:#f92672>div</span> <span style=color:#a6e22e>className</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;app-mode__data-grid&#34;</span>&gt;
+</span></span><span style=display:flex><span>      {<span style=color:#a6e22e>showPolicy</span> <span style=color:#f92672>&amp;&amp;</span> (
+</span></span><span style=display:flex><span>        &lt;<span style=color:#f92672>DataCell</span> <span style=color:#a6e22e>title</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;Policy Info&#34;</span> <span style=color:#a6e22e>icon</span><span style=color:#f92672>=</span>{<span style=color:#a6e22e>ICON_POLICY</span>}&gt;
+</span></span><span style=display:flex><span>          {<span style=color:#a6e22e>claimType</span> <span style=color:#f92672>&amp;&amp;</span> &lt;<span style=color:#f92672>div</span> <span style=color:#a6e22e>className</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;data-cell__chip&#34;</span>&gt;{<span style=color:#a6e22e>claimType</span>} <span style=color:#a6e22e>claim</span>&lt;/<span style=color:#f92672>div</span>&gt;}
+</span></span><span style=display:flex><span>          {<span style=color:#a6e22e>categorized</span>.<span style=color:#a6e22e>policyFields</span>.<span style=color:#a6e22e>map</span>((<span style=color:#a6e22e>f</span>) <span style=color:#f92672>=&gt;</span> &lt;<span style=color:#f92672>DataField</span> <span style=color:#a6e22e>key</span><span style=color:#f92672>=</span>{<span style=color:#a6e22e>f</span>.<span style=color:#a6e22e>id</span>} <span style=color:#a6e22e>field</span><span style=color:#f92672>=</span>{<span style=color:#a6e22e>f</span>} /&gt;)}
+</span></span><span style=display:flex><span>        &lt;/<span style=color:#f92672>DataCell</span>&gt;
+</span></span><span style=display:flex><span>      )}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>      {<span style=color:#a6e22e>categorized</span>.<span style=color:#a6e22e>dateFields</span>.<span style=color:#a6e22e>length</span> <span style=color:#f92672>&gt;</span> <span style=color:#ae81ff>0</span> <span style=color:#f92672>&amp;&amp;</span> (
+</span></span><span style=display:flex><span>        &lt;<span style=color:#f92672>DataCell</span> <span style=color:#a6e22e>title</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;Incident Date&#34;</span> <span style=color:#a6e22e>icon</span><span style=color:#f92672>=</span>{<span style=color:#a6e22e>ICON_DATE</span>}&gt;
+</span></span><span style=display:flex><span>          {<span style=color:#a6e22e>categorized</span>.<span style=color:#a6e22e>dateFields</span>.<span style=color:#a6e22e>map</span>((<span style=color:#a6e22e>f</span>) <span style=color:#f92672>=&gt;</span> (
+</span></span><span style=display:flex><span>            &lt;<span style=color:#f92672>div</span> <span style=color:#a6e22e>key</span><span style=color:#f92672>=</span>{<span style=color:#a6e22e>f</span>.<span style=color:#a6e22e>id</span>} <span style=color:#a6e22e>className</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;data-cell__date-display&#34;</span>&gt;
+</span></span><span style=display:flex><span>              &lt;<span style=color:#f92672>span</span> <span style=color:#a6e22e>className</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;data-cell__date-value&#34;</span>&gt;{<span style=color:#a6e22e>f</span>.<span style=color:#a6e22e>value</span>}&lt;/<span style=color:#f92672>span</span>&gt;
+</span></span><span style=display:flex><span>            &lt;/<span style=color:#f92672>div</span>&gt;
+</span></span><span style=display:flex><span>          ))}
+</span></span><span style=display:flex><span>        &lt;/<span style=color:#f92672>DataCell</span>&gt;
+</span></span><span style=display:flex><span>      )}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>      {<span style=color:#a6e22e>categorized</span>.<span style=color:#a6e22e>contactFields</span>.<span style=color:#a6e22e>length</span> <span style=color:#f92672>&gt;</span> <span style=color:#ae81ff>0</span> <span style=color:#f92672>&amp;&amp;</span> (
+</span></span><span style=display:flex><span>        &lt;<span style=color:#f92672>DataCell</span> <span style=color:#a6e22e>title</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;Contact&#34;</span> <span style=color:#a6e22e>icon</span><span style=color:#f92672>=</span>{<span style=color:#a6e22e>ICON_CONTACT</span>}&gt;
+</span></span><span style=display:flex><span>          {<span style=color:#a6e22e>categorized</span>.<span style=color:#a6e22e>contactFields</span>.<span style=color:#a6e22e>map</span>((<span style=color:#a6e22e>f</span>) <span style=color:#f92672>=&gt;</span> &lt;<span style=color:#f92672>DataField</span> <span style=color:#a6e22e>key</span><span style=color:#f92672>=</span>{<span style=color:#a6e22e>f</span>.<span style=color:#a6e22e>id</span>} <span style=color:#a6e22e>field</span><span style=color:#f92672>=</span>{<span style=color:#a6e22e>f</span>} /&gt;)}
+</span></span><span style=display:flex><span>        &lt;/<span style=color:#f92672>DataCell</span>&gt;
+</span></span><span style=display:flex><span>      )}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>      {<span style=color:#a6e22e>categorized</span>.<span style=color:#a6e22e>vehicleFields</span>.<span style=color:#a6e22e>length</span> <span style=color:#f92672>&gt;</span> <span style=color:#ae81ff>0</span> <span style=color:#f92672>&amp;&amp;</span> (
+</span></span><span style=display:flex><span>        &lt;<span style=color:#f92672>DataCell</span> <span style=color:#a6e22e>title</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;Vehicle&#34;</span> <span style=color:#a6e22e>icon</span><span style=color:#f92672>=</span>{<span style=color:#a6e22e>ICON_VEHICLE</span>}&gt;
+</span></span><span style=display:flex><span>          {<span style=color:#a6e22e>categorized</span>.<span style=color:#a6e22e>vehicleFields</span>.<span style=color:#a6e22e>map</span>((<span style=color:#a6e22e>f</span>) <span style=color:#f92672>=&gt;</span> &lt;<span style=color:#f92672>DataField</span> <span style=color:#a6e22e>key</span><span style=color:#f92672>=</span>{<span style=color:#a6e22e>f</span>.<span style=color:#a6e22e>id</span>} <span style=color:#a6e22e>field</span><span style=color:#f92672>=</span>{<span style=color:#a6e22e>f</span>} /&gt;)}
+</span></span><span style=display:flex><span>        &lt;/<span style=color:#f92672>DataCell</span>&gt;
+</span></span><span style=display:flex><span>      )}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>      {<span style=color:#a6e22e>categorized</span>.<span style=color:#a6e22e>descriptionFields</span>.<span style=color:#a6e22e>length</span> <span style=color:#f92672>&gt;</span> <span style=color:#ae81ff>0</span> <span style=color:#f92672>&amp;&amp;</span> (
+</span></span><span style=display:flex><span>        &lt;<span style=color:#f92672>DataCell</span> <span style=color:#a6e22e>title</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;Details&#34;</span> <span style=color:#a6e22e>icon</span><span style=color:#f92672>=</span>{<span style=color:#a6e22e>ICON_DETAILS</span>}&gt;
+</span></span><span style=display:flex><span>          {<span style=color:#a6e22e>categorized</span>.<span style=color:#a6e22e>descriptionFields</span>.<span style=color:#a6e22e>map</span>((<span style=color:#a6e22e>f</span>) <span style=color:#f92672>=&gt;</span> &lt;<span style=color:#f92672>DataField</span> <span style=color:#a6e22e>key</span><span style=color:#f92672>=</span>{<span style=color:#a6e22e>f</span>.<span style=color:#a6e22e>id</span>} <span style=color:#a6e22e>field</span><span style=color:#f92672>=</span>{<span style=color:#a6e22e>f</span>} <span style=color:#a6e22e>multiline</span> /&gt;)}
+</span></span><span style=display:flex><span>        &lt;/<span style=color:#f92672>DataCell</span>&gt;
+</span></span><span style=display:flex><span>      )}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>      {<span style=color:#a6e22e>showLocation</span> <span style=color:#f92672>&amp;&amp;</span> (
+</span></span><span style=display:flex><span>        &lt;<span style=color:#f92672>DataCell</span> <span style=color:#a6e22e>title</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;Location&#34;</span> <span style=color:#a6e22e>icon</span><span style=color:#f92672>=</span>{<span style=color:#a6e22e>ICON_LOCATION</span>} <span style=color:#a6e22e>className</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;data-cell--wide&#34;</span>&gt;
+</span></span><span style=display:flex><span>          &lt;<span style=color:#f92672>div</span> <span style=color:#a6e22e>className</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;data-cell__location-value&#34;</span>&gt;{<span style=color:#a6e22e>location</span>}&lt;/<span style=color:#f92672>div</span>&gt;
+</span></span><span style=display:flex><span>          &lt;<span style=color:#f92672>div</span> <span style=color:#a6e22e>className</span><span style=color:#f92672>=</span><span style=color:#e6db74>&#34;data-cell__map-wrap&#34;</span>&gt;
+</span></span><span style=display:flex><span>            &lt;<span style=color:#f92672>IncidentMap</span> <span style=color:#a6e22e>location</span><span style=color:#f92672>=</span>{<span style=color:#a6e22e>location</span>} /&gt;
+</span></span><span style=display:flex><span>          &lt;/<span style=color:#f92672>div</span>&gt;
+</span></span><span style=display:flex><span>        &lt;/<span style=color:#f92672>DataCell</span>&gt;
+</span></span><span style=display:flex><span>      )}
+</span></span><span style=display:flex><span>    &lt;/<span style=color:#f92672>div</span>&gt;
+</span></span><span style=display:flex><span>  );
+</span></span><span style=display:flex><span>}</span></span></code></pre></td></tr></table></div></div></div></figure><p>In Developer mode the same event automatically appears in the events
+rail and the timeline. No extra work.</p><h2 id=architecture-you-should-preserve>Architecture you should preserve</h2><p>The decisions worth keeping when you fork this sample:</p><ul><li>One Voice Live API session per call. Don&rsquo;t open a new connection per
+agent. Use <code>session.update</code> for handoffs.</li><li>One asyncio loop on a native thread. Gevent + asyncio is workable but
+only if you keep them in their own threads. See <a href=/architecture/#why-a-shared-asyncio-loop>Architecture</a>.</li><li>Events are the public API. Everything the UI shows is reconstructible
+from the event stream. Keep that property and you get debuggability
+for free.</li><li>Two tiers of validation. Deterministic first, LLM judge second. Cheap
+rules for everything you can predict, an LLM for everything you cannot.
+See <a href=/validation/>Validation flow</a>.</li><li>Two views of the same data. App mode and Developer mode are layout
+variants over the same WebSocket, not separate apps. See
+<a href=/app-mode/>App vs Developer mode</a>.</li></ul><h2 id=where-to-look-when-something-breaks>Where to look when something breaks</h2><table><thead><tr><th>Symptom</th><th>Look here</th></tr></thead><tbody><tr><td>WS opens then closes immediately</td><td><code>backend/websocket_handler.py</code> <code>azure_ready</code> timeout</td></tr><tr><td>Caller hears silence after a handoff</td><td><code>_apply_handoff</code> — confirm <code>ClientEventResponseCreate</code> is sent</td></tr><tr><td>Validator always rejects</td><td>Question service <code>/validate</code> payload — is your <code>acceptance_criteria</code> correct?</td></tr><tr><td>Token usage explodes on long calls</td><td>Switch compaction to <code>token_budget_4k</code>, watch for <code>compaction.applied</code> events</td></tr><tr><td>New pattern not in the picker</td><td>Confirm <code>@register_pattern("name")</code> decorator and that the module is imported</td></tr></tbody></table><p>That is the whole sample. Lift the seams, keep the architecture, swap
+in your own domain, and you have a voice-first agentic product on top
+of your own data.</p></div><nav class=pager><a class="pager__link pager__link--prev" href=/evals/><span class=pager__dir>← Previous</span>
+<span class=pager__name>Evals</span></a></nav></article><footer class=docfoot><span>Built with Hugo · Source code references resolved at build time</span></footer></main></div></body></html>

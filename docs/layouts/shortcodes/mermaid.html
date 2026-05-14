@@ -1,0 +1,14 @@
+{{- $_ := .Page.Store.Set "hasMermaid" true -}}
+<div class="mermaid-wrap">
+  <button type="button" class="mermaid-wrap__zoom" aria-label="Expand diagram" title="Expand diagram">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M3 6V3h3M13 6V3h-3M3 10v3h3M13 10v3h-3" />
+    </svg>
+    <span>Expand</span>
+  </button>
+  <div class="mermaid-wrap__scroll">
+<pre class="mermaid">
+{{ .Inner | safeHTML }}
+</pre>
+  </div>
+</div>

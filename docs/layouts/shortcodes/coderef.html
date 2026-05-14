@@ -1,0 +1,32 @@
+{{- /*
+  coderef — embed an exact slice of a source file by path + line range.
+  Usage:
+    {{< coderef path="backend/azure_session.py" start=58 end=75 lang="python" title="Open the Voice Live API connection" >}}
+  The file is read at build time relative to the project root via the `_code` symlink.
+*/ -}}
+{{- $path  := .Get "path" -}}
+{{- $start := int (.Get "start") -}}
+{{- $end   := int (.Get "end") -}}
+{{- $lang  := .Get "lang" | default "" -}}
+{{- $title := .Get "title" | default $path -}}
+{{- $repo  := .Site.Params.repo -}}
+
+{{- $full := readFile (printf "_code/%s" $path) -}}
+{{- $lines := split $full "\n" -}}
+{{- $total := len $lines -}}
+{{- if gt $end $total }}{{ $end = $total }}{{ end -}}
+{{- $slice := after (sub $start 1) (first $end $lines) -}}
+{{- $code  := delimit $slice "\n" -}}
+
+<figure class="coderef">
+  <figcaption class="coderef__cap">
+    <span class="coderef__title">{{ $title }}</span>
+    <a class="coderef__path" href="{{ $repo }}/blob/main/{{ $path }}#L{{ $start }}-L{{ $end }}" target="_blank" rel="noopener">
+      <code>{{ $path }}</code>
+      <span class="coderef__lines">L{{ $start }}–L{{ $end }}</span>
+    </a>
+  </figcaption>
+  <div class="coderef__body" data-start="{{ $start }}">
+{{ highlight $code $lang (printf "linenos=true,linenostart=%d,hl_lines=" $start) }}
+  </div>
+</figure>

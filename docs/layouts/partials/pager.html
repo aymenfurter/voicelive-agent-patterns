@@ -1,0 +1,29 @@
+{{ $pages := where .Site.RegularPages "Section" "in" (slice "" .Section) }}
+{{ $pages = sort .Site.Menus.main "Weight" }}
+{{ $links := slice }}
+{{ range .Site.Menus.main }}
+  {{ $links = $links | append (dict "name" .Name "url" (.URL | relURL)) }}
+{{ end }}
+{{ $cur := .RelPermalink }}
+{{ $idx := -1 }}
+{{ range $i, $l := $links }}
+  {{ if eq $l.url $cur }}{{ $idx = $i }}{{ end }}
+{{ end }}
+{{ if ge $idx 0 }}
+<nav class="pager">
+  {{ if gt $idx 0 }}
+    {{ $prev := index $links (sub $idx 1) }}
+    <a class="pager__link pager__link--prev" href="{{ $prev.url }}">
+      <span class="pager__dir">← Previous</span>
+      <span class="pager__name">{{ $prev.name }}</span>
+    </a>
+  {{ else }}<span></span>{{ end }}
+  {{ if lt $idx (sub (len $links) 1) }}
+    {{ $next := index $links (add $idx 1) }}
+    <a class="pager__link pager__link--next" href="{{ $next.url }}">
+      <span class="pager__dir">Next →</span>
+      <span class="pager__name">{{ $next.name }}</span>
+    </a>
+  {{ end }}
+</nav>
+{{ end }}

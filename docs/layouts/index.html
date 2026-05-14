@@ -1,0 +1,12 @@
+{{ define "main" }}
+<article class="doc">
+  <header class="doc__header">
+    <div class="doc__eyebrow">Solution Accelerator</div>
+    <h1 class="doc__title">{{ .Site.Title }}</h1>
+    <p class="doc__lead">{{ .Site.Params.description }}</p>
+  </header>
+  <div class="doc__body">
+    {{ .Content }}
+  </div>
+</article>
+{{ end }}

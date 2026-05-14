@@ -1,0 +1,302 @@
+<!doctype html><html lang=en><head><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Pattern 2 — Sequential Handoff · Voice Live API — Orchestration Patterns</title>
+<meta name=description content="A code-driven walkthrough of agentic orchestration patterns built on top of the Azure Voice Live API."><link rel=stylesheet href=/css/app.css><link rel=preconnect href=https://fonts.googleapis.com><link rel=preconnect href=https://fonts.gstatic.com crossorigin><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel=stylesheet></head><body><header class=topbar><a class=topbar__brand href=/><span class=topbar__brand-text><span class=topbar__brand-name>Voice Live API</span>
+<span class=topbar__brand-sub>Orchestration Patterns</span></span></a><nav class=topbar__actions><a href=https://github.com/Azure-Samples/voicelive-agent-patterns target=_blank rel=noopener>GitHub</a></nav></header><div class=layout><aside class=sidebar><nav class=sidebar__nav><a class=sidebar__link href=/><span class=sidebar__link-num>01</span>
+<span>Introduction</span>
+</a><a class=sidebar__link href=/origins/><span class=sidebar__link-num>01</span>
+<span>Origins & Lineage</span>
+</a><a class=sidebar__link href=/architecture/><span class=sidebar__link-num>02</span>
+<span>Architecture</span>
+</a><a class=sidebar__link href=/session-lifecycle/><span class=sidebar__link-num>03</span>
+<span>Session Lifecycle</span>
+</a><a class=sidebar__link href=/chat-supervisor/><span class=sidebar__link-num>04</span>
+<span>Chat-Supervisor</span>
+</a><a class="sidebar__link sidebar__link--active" href=/sequential-handoff/><span class=sidebar__link-num>05</span>
+<span>Sequential Handoff</span>
+</a><a class=sidebar__link href=/validation/><span class=sidebar__link-num>06</span>
+<span>Validation Flow</span>
+</a><a class=sidebar__link href=/events-compaction/><span class=sidebar__link-num>07</span>
+<span>Events & Compaction</span>
+</a><a class=sidebar__link href=/app-mode/><span class=sidebar__link-num>08</span>
+<span>App vs Developer Mode</span>
+</a><a class=sidebar__link href=/evals/><span class=sidebar__link-num>08</span>
+<span>Evals</span>
+</a><a class=sidebar__link href=/integration/><span class=sidebar__link-num>09</span>
+<span>Integration Guide</span></a></nav></aside><main class=content><article class=doc><header class=doc__header><div class=doc__eyebrow>A graph of specialist agents</div><h1 class=doc__title>Pattern 2 — Sequential Handoff</h1></header><div class=doc__body><p>Sequential Handoff shows a workflow where the caller is explicitly
+moved between specialists (<code>greeter</code>, <code>top_level_qa</code>, <code>auto_claims</code>,
+<code>property_claims</code>, <code>health_claims</code>, and <code>summary</code>), but where each
+&ldquo;agent&rdquo; is just a different prompt and tool list applied to the same
+Voice Live API session.</p><figure class=shot><a href=/img/11-sequential-handoff-initial.png target=_blank rel=noopener><img src=/img/11-sequential-handoff-initial.png alt="Sequential handoff initial state. Greeter is the active agent and the agent progress list shows all six agents." loading=lazy></a><figcaption class=shot__cap>Every call starts with the greeter. The Agent Progress list previews the chain to come.</figcaption></figure><h2 id=agents-are-just-configs>Agents are just configs</h2><p>An agent is a small dataclass with three things: a name, a system prompt,
+and a list of allowed handoff targets. Specialists also carry the business
+tools (<code>validate_answer</code>, <code>get_next_questions</code>, <code>submit_claim_data</code>).</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>An agent is just a name + prompt + handoff list</span>
+<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/patterns/sequential_handoff.py#L21-L51 target=_blank rel=noopener><code>backend/patterns/sequential_handoff.py</code>
+<span class=coderef__lines>L21–L51</span></a></figcaption><div class=coderef__body data-start=21><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">25
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">26
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">27
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">28
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">29
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">30
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">31
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">32
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">33
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">34
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">35
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">36
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">37
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">38
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">39
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">40
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">41
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">42
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">43
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">44
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">45
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">46
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">47
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">48
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">49
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">50
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">51
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>AgentConfig</span>:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;Configuration for a single agent in the handoff chain.&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    name: str
+</span></span><span style=display:flex><span>    instructions: str
+</span></span><span style=display:flex><span>    tools: list[dict[str, Any]] <span style=color:#f92672>=</span> field(default_factory<span style=color:#f92672>=</span>list)
+</span></span><span style=display:flex><span>    handoffs: list[str] <span style=color:#f92672>=</span> field(default_factory<span style=color:#f92672>=</span>list)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># --- Agent Definitions ---</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>GREETER_AGENT <span style=color:#f92672>=</span> AgentConfig(
+</span></span><span style=display:flex><span>    name<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;greeter&#34;</span>,
+</span></span><span style=display:flex><span>    instructions<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;&#34;&#34;</span><span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span><span style=color:#e6db74>You are the Greeter Agent for SecureLife Insurance. Your ONLY job is to:
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>1. Welcome the caller warmly and introduce yourself.
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>2. Ask how you can help them today.
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>3. Once you understand they need to file a claim or have questions, hand off to the </span><span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span><span style=color:#e6db74>appropriate agent.
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>Keep your greeting brief (2-3 sentences max). Example:
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>&#34;Hello! Welcome to SecureLife Insurance. I&#39;m here to help you today. </span><span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span><span style=color:#e6db74>Are you looking to file a claim, or do you have questions about your policy?&#34;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>IMPORTANT: You do NOT handle claims or answer policy questions yourself. </span><span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span><span style=color:#e6db74>Transfer immediately once you understand the caller&#39;s intent.</span><span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span><span style=color:#e6db74>&#34;&#34;&#34;</span>,
+</span></span><span style=display:flex><span>    tools<span style=color:#f92672>=</span>[],
+</span></span><span style=display:flex><span>    handoffs<span style=color:#f92672>=</span>[<span style=color:#e6db74>&#34;transfer_to_top_level_qa&#34;</span>],
+</span></span><span style=display:flex><span>)</span></span></code></pre></td></tr></table></div></div></div></figure><p>The full registry maps agent names to configs:</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>Six agents, accessed by name</span>
+<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/patterns/sequential_handoff.py#L209-L217 target=_blank rel=noopener><code>backend/patterns/sequential_handoff.py</code>
+<span class=coderef__lines>L209–L217</span></a></figcaption><div class=coderef__body data-start=209><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">209
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">210
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">211
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">212
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">213
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">214
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">215
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">216
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span>AGENTS: dict[str, AgentConfig] <span style=color:#f92672>=</span> {
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;greeter&#34;</span>: GREETER_AGENT,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;top_level_qa&#34;</span>: TOP_LEVEL_QA_AGENT,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;auto_claims&#34;</span>: AUTO_CLAIMS_AGENT,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;property_claims&#34;</span>: PROPERTY_CLAIMS_AGENT,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;health_claims&#34;</span>: HEALTH_CLAIMS_AGENT,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;summary&#34;</span>: SUMMARY_AGENT,
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></td></tr></table></div></div></div></figure><h2 id=how-transfers-become-tool-calls>How transfers become tool calls</h2><p>The pattern generates a <code>transfer_to_&lt;target></code> function tool for every
+allowed handoff target. The realtime model sees these tools alongside the
+domain tools and decides when to call them.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>Handoff tools are generated from each agent's `handoffs` list</span>
+<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/patterns/sequential_handoff.py#L219-L241 target=_blank rel=noopener><code>backend/patterns/sequential_handoff.py</code>
+<span class=coderef__lines>L219–L241</span></a></figcaption><div class=coderef__body data-start=219><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">219
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">220
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">221
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">222
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">223
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">224
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">225
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">226
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">227
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">228
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">229
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">230
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">231
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">232
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">233
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">234
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">235
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">236
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">237
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">238
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">239
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">240
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>_build_handoff_tools</span>(agent: AgentConfig) <span style=color:#f92672>-&gt;</span> list[dict[str, Any]]:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;Build transfer tool definitions from agent handoff list.&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    handoff_tools: list[dict[str, Any]] <span style=color:#f92672>=</span> []
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> handoff <span style=color:#f92672>in</span> agent<span style=color:#f92672>.</span>handoffs:
+</span></span><span style=display:flex><span>        target_name <span style=color:#f92672>=</span> handoff<span style=color:#f92672>.</span>replace(<span style=color:#e6db74>&#34;transfer_to_&#34;</span>, <span style=color:#e6db74>&#34;&#34;</span>)<span style=color:#f92672>.</span>replace(<span style=color:#e6db74>&#34;_&#34;</span>, <span style=color:#e6db74>&#34; &#34;</span>)<span style=color:#f92672>.</span>title()
+</span></span><span style=display:flex><span>        handoff_tools<span style=color:#f92672>.</span>append({
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;type&#34;</span>: <span style=color:#e6db74>&#34;function&#34;</span>,
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;name&#34;</span>: handoff,
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;description&#34;</span>: <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Transfer the conversation to the </span><span style=color:#e6db74>{</span>target_name<span style=color:#e6db74>}</span><span style=color:#e6db74> agent.&#34;</span>,
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;parameters&#34;</span>: {
+</span></span><span style=display:flex><span>                <span style=color:#e6db74>&#34;type&#34;</span>: <span style=color:#e6db74>&#34;object&#34;</span>,
+</span></span><span style=display:flex><span>                <span style=color:#e6db74>&#34;properties&#34;</span>: {
+</span></span><span style=display:flex><span>                    <span style=color:#e6db74>&#34;reason&#34;</span>: {
+</span></span><span style=display:flex><span>                        <span style=color:#e6db74>&#34;type&#34;</span>: <span style=color:#e6db74>&#34;string&#34;</span>,
+</span></span><span style=display:flex><span>                        <span style=color:#e6db74>&#34;description&#34;</span>: <span style=color:#e6db74>&#34;Brief reason for the transfer.&#34;</span>,
+</span></span><span style=display:flex><span>                    },
+</span></span><span style=display:flex><span>                },
+</span></span><span style=display:flex><span>                <span style=color:#e6db74>&#34;required&#34;</span>: [<span style=color:#e6db74>&#34;reason&#34;</span>],
+</span></span><span style=display:flex><span>            },
+</span></span><span style=display:flex><span>        })
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> handoff_tools
+</span></span><span style=display:flex><span>
+</span></span></code></pre></td></tr></table></div></div></div></figure><p>When the model calls <code>transfer_to_auto_claims</code>, the pattern swaps
+<code>_current_agent_name</code> and returns a result that includes the new agent&rsquo;s
+prompt and tools, plus a <code>requires_session_update: True</code> flag that tells
+the session loop to push a <code>session.update</code> to Azure.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>A transfer is a tool call that returns the new prompt and tools</span>
+<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/patterns/sequential_handoff.py#L295-L318 target=_blank rel=noopener><code>backend/patterns/sequential_handoff.py</code>
+<span class=coderef__lines>L295–L318</span></a></figcaption><div class=coderef__body data-start=295><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">295
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">296
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">297
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">298
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">299
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">300
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">301
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">302
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">303
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">304
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">305
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">306
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">307
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">308
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">309
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">310
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">311
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">312
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">313
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">314
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">315
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">316
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">317
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">318
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span>        <span style=color:#66d9ef>if</span> target <span style=color:#f92672>not</span> <span style=color:#f92672>in</span> AGENTS:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> {<span style=color:#e6db74>&#34;error&#34;</span>: <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Unknown agent: </span><span style=color:#e6db74>{</span>target<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        previous_agent <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>_current_agent_name
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>_current_agent_name <span style=color:#f92672>=</span> target
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        logger<span style=color:#f92672>.</span>info(<span style=color:#e6db74>&#34;Handoff: </span><span style=color:#e6db74>%s</span><span style=color:#e6db74> -&gt; </span><span style=color:#e6db74>%s</span><span style=color:#e6db74> (reason: </span><span style=color:#e6db74>%s</span><span style=color:#e6db74>)&#34;</span>, previous_agent, target, reason)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> {
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;status&#34;</span>: <span style=color:#e6db74>&#34;transferred&#34;</span>,
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;from_agent&#34;</span>: previous_agent,
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;to_agent&#34;</span>: target,
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;reason&#34;</span>: reason,
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;new_instructions&#34;</span>: self<span style=color:#f92672>.</span>get_system_prompt(),
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;new_tools&#34;</span>: self<span style=color:#f92672>.</span>get_tools(),
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;requires_session_update&#34;</span>: <span style=color:#66d9ef>True</span>,
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>_handle_get_next_questions</span>(self, arguments: dict[str, Any]) <span style=color:#f92672>-&gt;</span> dict[str, Any]:
+</span></span><span style=display:flex><span>        claim_type <span style=color:#f92672>=</span> arguments<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;claim_type&#34;</span>, <span style=color:#e6db74>&#34;auto&#34;</span>)
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>_session<span style=color:#f92672>.</span>claim_type <span style=color:#f92672>=</span> claim_type
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        questions <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> question_client<span style=color:#f92672>.</span>get_questions_by_category(claim_type)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> <span style=color:#f92672>not</span> questions:</span></span></code></pre></td></tr></table></div></div></div></figure><p>The session loop reads that flag in <code>_handle_tool_call</code> and dispatches
+to <code>_apply_handoff</code> (covered in <a href=/session-lifecycle/#the-session-is-updated-not-replaced-rule>Session lifecycle</a>),
+which updates the same Voice Live API connection. It never opens a new
+one.</p><h2 id=watching-the-handoff-happen>Watching the handoff happen</h2><p>Once the caller has spoken enough for the greeter to triage them, two
+transfers fire in quick succession: <code>greeter</code> to <code>top_level_qa</code> to
+<code>auto_claims</code>. The events rail records each step.</p><figure class=shot><a href=/img/12-sequential-handoff-in-conversation.png target=_blank rel=noopener><img src=/img/12-sequential-handoff-in-conversation.png alt="Sequential handoff after two transfers. The handoff history panel shows Greeter → Top Level Qa → Auto Claims and the events rail shows three prompt updates and two transfer_to_* tool calls." loading=lazy></a><figcaption class=shot__cap>Three prompt updates, two handoffs, one session.</figcaption></figure><h2 id=end-to-end-flow>End-to-end flow</h2><div class=mermaid-wrap><button type=button class=mermaid-wrap__zoom aria-label="Expand diagram" title="Expand diagram">
+<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentcolor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6V3h3m7 3V3h-3M3 10v3h3m7-3v3h-3"/></svg>
+<span>Expand</span></button><div class=mermaid-wrap__scroll><pre class=mermaid>
+
+sequenceDiagram
+  autonumber
+  participant U as Caller
+  participant V as Realtime model (gpt-realtime)
+  participant B as Backend
+  participant A as Azure Voice Live API
+
+  Note over V: Active prompt: greeter
+  U->>V: "I need to file a claim."
+  V->>B: function_call transfer_to_top_level_qa{reason}
+  B->>A: ClientEventConversationItemCreate(FunctionCallOutputItem)
+  B->>A: ClientEventSessionUpdate(top_level_qa prompt + tools)
+  B->>A: ClientEventResponseCreate(additional_instructions=handoff_prompt)
+  A-->>B: response.audio.delta (now speaking as top_level_qa)
+  B-->>F: agent.handoff, session.prompt_updated
+
+  Note over V: Active prompt: top_level_qa
+  U->>V: "It's an auto accident."
+  V->>B: function_call transfer_to_auto_claims{reason}
+  B->>A: same dance, with auto_claims prompt + tools
+  Note over V: Active prompt: auto_claims
+
+</pre></div></div><h2 id=why-this-pattern>Why this pattern</h2><p>Use Sequential Handoff when:</p><ul><li>Your call has clearly distinct phases that each want their own prompt
+(different vocabulary, different tools, different temperature).</li><li>You want to keep each agent&rsquo;s prompt small and focused, so it is
+easier to evaluate and iterate on individually.</li><li>You want a visible &ldquo;where are we in the workflow&rdquo; signal in the UI.
+The handoff history is the workflow.</li></ul><p>If you want one consistent voice persona for the whole call and only
+need help with a few business decisions, see
+<a href=/chat-supervisor/>Chat-Supervisor</a>.</p><h2 id=see-the-prompt-diff>See the prompt diff</h2><p>Open the <strong>Prompt Updates</strong> panel after a few handoffs and you can step
+through every prompt the realtime model has been given on this session.
+Every update is timestamped and labeled with the new agent name.</p><figure class=shot><a href=/img/13-prompt-diff-handoffs.png target=_blank rel=noopener><img src=/img/13-prompt-diff-handoffs.png alt="Prompt Updates panel showing three entries: greeter, top_level_qa, auto_claims, each with their full system prompt." loading=lazy></a><figcaption class=shot__cap>The prompt diff panel doubles as an audit log of every persona the model has worn.</figcaption></figure></div><nav class=pager><a class="pager__link pager__link--prev" href=/chat-supervisor/><span class=pager__dir>← Previous</span>
+<span class=pager__name>Chat-Supervisor</span>
+</a><a class="pager__link pager__link--next" href=/validation/><span class=pager__dir>Next →</span>
+<span class=pager__name>Validation Flow</span></a></nav></article><footer class=docfoot><span>Built with Hugo · Source code references resolved at build time</span></footer></main></div><script type=module>
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: 'Outfit, system-ui, sans-serif',
+      fontSize: '15px',
+      primaryColor: '#1C1A15',
+      primaryTextColor: '#EDE8DF',
+      primaryBorderColor: '#E5A922',
+      lineColor: '#A49780',
+      secondaryColor: '#13120E',
+      tertiaryColor: '#0A0908',
+      noteBkgColor: '#1C1A15',
+      noteTextColor: '#F2C14E',
+      noteBorderColor: '#E5A922',
+      actorBkg: '#1C1A15',
+      actorBorder: '#E5A922',
+      actorTextColor: '#EDE8DF',
+      actorLineColor: '#6D6150',
+      signalColor: '#EDE8DF',
+      signalTextColor: '#EDE8DF',
+      labelBoxBkgColor: '#13120E',
+      labelBoxBorderColor: '#E5A922',
+      labelTextColor: '#F2C14E',
+      loopTextColor: '#A49780',
+      activationBkgColor: '#302B22',
+      activationBorderColor: '#E5A922',
+      sequenceNumberColor: '#000',
+    },
+    sequence: {
+      mirrorActors: false,
+      useMaxWidth: true,
+      wrap: true,
+      actorMargin: 70,
+      messageMargin: 40,
+      boxMargin: 12,
+      noteMargin: 12,
+      width: 160,
+      height: 52,
+      messageFontSize: 13,
+      actorFontSize: 14,
+      noteFontSize: 12,
+    },
+    flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+  });
+</script><div class=mermaid-modal id=mermaidModal hidden><div class=mermaid-modal__toolbar><button type=button data-zoom=out aria-label="Zoom out">−</button>
+<button type=button data-zoom=reset aria-label="Reset zoom">Reset</button>
+<button type=button data-zoom=in aria-label="Zoom in">+</button>
+<button type=button data-zoom=close aria-label=Close class=mermaid-modal__close>Close ✕</button></div><div class=mermaid-modal__viewport><div class=mermaid-modal__stage id=mermaidModalStage></div></div></div><script>(()=>{const n=document.getElementById("mermaidModal"),s=document.getElementById("mermaidModalStage");if(!n||!s)return;let e=1;const t=()=>{s.style.transform=`scale(${e})`},i=o=>{s.innerHTML="";const i=o.cloneNode(!0);i.removeAttribute("style"),i.style.height="auto",i.style.maxWidth="none";const a=i.viewBox&&i.viewBox.baseVal;a&&a.width&&(i.setAttribute("width",a.width),i.setAttribute("height",a.height),i.style.width=a.width+"px"),s.appendChild(i),e=1,t(),n.hidden=!1,document.body.style.overflow="hidden"},o=()=>{n.hidden=!0,s.innerHTML="",document.body.style.overflow=""};document.addEventListener("click",n=>{const a=n.target.closest(".mermaid-wrap__zoom");if(a){const t=a.closest(".mermaid-wrap"),e=t?.querySelector(".mermaid-wrap__scroll svg");e&&i(e);return}const r=n.target.closest("[data-zoom]");if(!r)return;const s=r.dataset.zoom;s==="in"&&(e=Math.min(4,e*1.25),t()),s==="out"&&(e=Math.max(.3,e/1.25),t()),s==="reset"&&(e=1,t()),s==="close"&&o()}),document.addEventListener("keydown",s=>{if(n.hidden)return;s.key==="Escape"&&o(),(s.key==="+"||s.key==="=")&&(e=Math.min(4,e*1.25),t()),s.key==="-"&&(e=Math.max(.3,e/1.25),t()),s.key==="0"&&(e=1,t())}),n.addEventListener("wheel",n=>{if(!n.ctrlKey&&!n.metaKey)return;n.preventDefault(),e=Math.min(4,Math.max(.3,e*(n.deltaY<0?1.1:1/1.1))),t()},{passive:!1})})()</script></body></html>

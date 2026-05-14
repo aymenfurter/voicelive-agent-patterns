@@ -1,0 +1,7 @@
+pytest>=7.0
+pytest-asyncio>=0.21
+httpx>=0.24
+azure-ai-voicelive>=1.1.0
+azure-identity>=1.15.0
+openai>=1.0.0
+edge-tts>=6.0

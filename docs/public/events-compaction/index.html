@@ -1,0 +1,471 @@
+<!doctype html><html lang=en><head><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Events & compaction · Voice Live API — Orchestration Patterns</title>
+<meta name=description content="A code-driven walkthrough of agentic orchestration patterns built on top of the Azure Voice Live API."><link rel=stylesheet href=/css/app.css><link rel=preconnect href=https://fonts.googleapis.com><link rel=preconnect href=https://fonts.gstatic.com crossorigin><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel=stylesheet></head><body><header class=topbar><a class=topbar__brand href=/><span class=topbar__brand-text><span class=topbar__brand-name>Voice Live API</span>
+<span class=topbar__brand-sub>Orchestration Patterns</span></span></a><nav class=topbar__actions><a href=https://github.com/Azure-Samples/voicelive-agent-patterns target=_blank rel=noopener>GitHub</a></nav></header><div class=layout><aside class=sidebar><nav class=sidebar__nav><a class=sidebar__link href=/><span class=sidebar__link-num>01</span>
+<span>Introduction</span>
+</a><a class=sidebar__link href=/origins/><span class=sidebar__link-num>01</span>
+<span>Origins & Lineage</span>
+</a><a class=sidebar__link href=/architecture/><span class=sidebar__link-num>02</span>
+<span>Architecture</span>
+</a><a class=sidebar__link href=/session-lifecycle/><span class=sidebar__link-num>03</span>
+<span>Session Lifecycle</span>
+</a><a class=sidebar__link href=/chat-supervisor/><span class=sidebar__link-num>04</span>
+<span>Chat-Supervisor</span>
+</a><a class=sidebar__link href=/sequential-handoff/><span class=sidebar__link-num>05</span>
+<span>Sequential Handoff</span>
+</a><a class=sidebar__link href=/validation/><span class=sidebar__link-num>06</span>
+<span>Validation Flow</span>
+</a><a class="sidebar__link sidebar__link--active" href=/events-compaction/><span class=sidebar__link-num>07</span>
+<span>Events & Compaction</span>
+</a><a class=sidebar__link href=/app-mode/><span class=sidebar__link-num>08</span>
+<span>App vs Developer Mode</span>
+</a><a class=sidebar__link href=/evals/><span class=sidebar__link-num>08</span>
+<span>Evals</span>
+</a><a class=sidebar__link href=/integration/><span class=sidebar__link-num>09</span>
+<span>Integration Guide</span></a></nav></aside><main class=content><article class=doc><header class=doc__header><div class=doc__eyebrow>Observability and context-window care</div><h1 class=doc__title>Events & compaction</h1></header><div class=doc__body><p>The backend never sends raw Azure events to the browser. It maps them
+through <code>event_mapper.py</code> into a small friendly vocabulary, attaches
+domain events of its own (handoffs, supervisor consultations, prompt
+updates, compaction), and ships the lot as <code>OutboundEvent</code>s.</p><h2 id=the-event-vocabulary>The event vocabulary</h2><p>The Azure-to-client translation is a flat dictionary.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>From Azure event names to client event types</span>
+<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/event_mapper.py#L9-L25 target=_blank rel=noopener><code>backend/event_mapper.py</code>
+<span class=coderef__lines>L9–L25</span></a></figcaption><div class=coderef__body data-start=9><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">25
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span>_TYPE_MAP <span style=color:#f92672>=</span> {
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;session.created&#34;</span>: <span style=color:#e6db74>&#34;session.created&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;session.updated&#34;</span>: <span style=color:#e6db74>&#34;session.updated&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;input_audio_buffer.speech_started&#34;</span>: <span style=color:#e6db74>&#34;audio.started&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;input_audio_buffer.speech_stopped&#34;</span>: <span style=color:#e6db74>&#34;audio.stopped&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.created&#34;</span>: <span style=color:#e6db74>&#34;response.created&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.audio.delta&#34;</span>: <span style=color:#e6db74>&#34;audio.delta&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.audio.done&#34;</span>: <span style=color:#e6db74>&#34;audio.done&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.audio_transcript.delta&#34;</span>: <span style=color:#e6db74>&#34;transcript.delta&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.audio_transcript.done&#34;</span>: <span style=color:#e6db74>&#34;transcript.done&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.text.delta&#34;</span>: <span style=color:#e6db74>&#34;text.delta&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.text.done&#34;</span>: <span style=color:#e6db74>&#34;text.done&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.function_call_arguments.delta&#34;</span>: <span style=color:#e6db74>&#34;tool.arguments.delta&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.function_call_arguments.done&#34;</span>: <span style=color:#e6db74>&#34;tool.called&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.done&#34;</span>: <span style=color:#e6db74>&#34;response.done&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;error&#34;</span>: <span style=color:#e6db74>&#34;error&#34;</span>,
+</span></span><span style=display:flex><span>}</span></span></code></pre></td></tr></table></div></div></div></figure><p>On top of that, the patterns and the session loop emit:</p><table><thead><tr><th>Event type</th><th>Source</th><th>When</th></tr></thead><tbody><tr><td><code>pattern.selected</code></td><td>websocket handler</td><td>Right after WS open.</td></tr><tr><td><code>session.created</code></td><td>event mapper</td><td>Voice Live API session is live.</td></tr><tr><td><code>session.prompt_updated</code></td><td><code>_apply_handoff</code></td><td>The model just received a new system prompt.</td></tr><tr><td><code>tool.called</code> / <code>tool.result</code></td><td><code>_handle_tool_call</code></td><td>Function tool dispatched and resolved.</td></tr><tr><td><code>agent.handoff</code></td><td><code>_apply_handoff</code></td><td>An agent transferred control to another.</td></tr><tr><td><code>supervisor.exchange</code></td><td>chat-supervisor pattern</td><td>A supervisor consultation completed.</td></tr><tr><td><code>compaction.applied</code></td><td><code>_apply_compaction</code></td><td>One or more conversation items were deleted.</td></tr><tr><td><code>error</code></td><td>event mapper / session loop</td><td>Anything Azure or the pattern surfaced.</td></tr></tbody></table><h2 id=voice-live-api-protocol-what-the-sample-extends>Voice Live API protocol: what the sample extends</h2><p>The Voice Live API speaks a fixed protocol over WebSocket
+(<a href=https://learn.microsoft.com/azure/ai-services/speech-service/voice-live-api-reference-2026-01-01-preview><code>2026-01-01-preview</code> reference</a>).
+The sample uses a strict subset of those events, then adds a small
+domain vocabulary of its own that only flows between the backend and
+the browser. Nothing the sample invents is ever sent up to Azure.</p><h3 id=pipe-1-browser-to-backend-frontend-control-plane>Pipe 1: Browser to Backend (frontend control plane)</h3><p>Plain JSON over the <code>/ws?pattern=…</code> socket. Defined in
+<a href=frontend/src/types.ts>frontend/src/types.ts</a>.</p><table><thead><tr><th>Type</th><th>Payload</th><th>Purpose</th></tr></thead><tbody><tr><td><code>audio</code></td><td><code>{ audio: base64(PCM16) }</code></td><td>Microphone chunk to forward to Azure.</td></tr><tr><td><code>text.message</code></td><td><code>{ text }</code></td><td>Text-mode user turn.</td></tr><tr><td><code>session.config</code></td><td><code>{ voice, vad, compaction, … }</code></td><td>Live config update before/after handoffs.</td></tr><tr><td><code>pattern.switch</code></td><td><code>{ pattern }</code></td><td>Tear down the current pattern and rebuild.</td></tr></tbody></table><h3 id=pipe-2-backend-tofrom-azure-voice-live-api-server-to-server>Pipe 2: Backend to/from Azure Voice Live API (server-to-server)</h3><p>The backend uses the <a href=https://learn.microsoft.com/azure/ai-services/speech-service/voice-live><code>azure-ai-voicelive</code></a>
+SDK, so the wire format is the official Voice Live event schema. The
+sample only consumes a subset of <a href=https://learn.microsoft.com/azure/ai-services/speech-service/voice-live-api-reference-2026-01-01-preview#server-events>server events</a>
+and only sends a subset of <a href=https://learn.microsoft.com/azure/ai-services/speech-service/voice-live-api-reference-2026-01-01-preview#client-events>client events</a>.</p><table><thead><tr><th>Direction</th><th>Event</th><th>Used for</th></tr></thead><tbody><tr><td>Client → Server</td><td><code>session.update</code></td><td>Initial config and every prompt/tool swap on handoff.</td></tr><tr><td>Client → Server</td><td><code>input_audio_buffer.append</code></td><td>Microphone PCM16 frames.</td></tr><tr><td>Client → Server</td><td><code>conversation.item.create</code> (<code>function_call_output</code>)</td><td>Returning a tool result.</td></tr><tr><td>Client → Server</td><td><code>conversation.item.delete</code></td><td>Compaction deletes individual items.</td></tr><tr><td>Client → Server</td><td><code>response.create</code></td><td>Force a turn after a handoff (with <code>additional_instructions</code>).</td></tr><tr><td>Server → Client</td><td><code>session.created</code> / <code>session.updated</code></td><td>Confirm config landed.</td></tr><tr><td>Server → Client</td><td><code>response.audio.delta</code> / <code>response.audio.done</code></td><td>Streamed model audio.</td></tr><tr><td>Server → Client</td><td><code>response.audio_transcript.delta</code> / <code>.done</code></td><td>Streamed assistant transcript.</td></tr><tr><td>Server → Client</td><td><code>response.text.delta</code> / <code>.done</code></td><td>Text-mode streamed output.</td></tr><tr><td>Server → Client</td><td><code>response.function_call_arguments.delta</code> / <code>.done</code></td><td>Tool calls. The <code>.done</code> event triggers dispatch.</td></tr><tr><td>Server → Client</td><td><code>input_audio_buffer.speech_started</code> / <code>.stopped</code></td><td>VAD signals (used for UI activity).</td></tr><tr><td>Server → Client</td><td><code>response.done</code></td><td>Carries <code>usage.input_tokens</code>, used by token-budget compaction.</td></tr><tr><td>Server → Client</td><td><code>error</code></td><td>Surfaces protocol or server errors.</td></tr></tbody></table><p>The translation from those names to the friendlier client-facing types
+is one dictionary.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>Voice Live API event types → client event types</span>
+<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/event_mapper.py#L9-L25 target=_blank rel=noopener><code>backend/event_mapper.py</code>
+<span class=coderef__lines>L9–L25</span></a></figcaption><div class=coderef__body data-start=9><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">25
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span>_TYPE_MAP <span style=color:#f92672>=</span> {
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;session.created&#34;</span>: <span style=color:#e6db74>&#34;session.created&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;session.updated&#34;</span>: <span style=color:#e6db74>&#34;session.updated&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;input_audio_buffer.speech_started&#34;</span>: <span style=color:#e6db74>&#34;audio.started&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;input_audio_buffer.speech_stopped&#34;</span>: <span style=color:#e6db74>&#34;audio.stopped&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.created&#34;</span>: <span style=color:#e6db74>&#34;response.created&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.audio.delta&#34;</span>: <span style=color:#e6db74>&#34;audio.delta&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.audio.done&#34;</span>: <span style=color:#e6db74>&#34;audio.done&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.audio_transcript.delta&#34;</span>: <span style=color:#e6db74>&#34;transcript.delta&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.audio_transcript.done&#34;</span>: <span style=color:#e6db74>&#34;transcript.done&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.text.delta&#34;</span>: <span style=color:#e6db74>&#34;text.delta&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.text.done&#34;</span>: <span style=color:#e6db74>&#34;text.done&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.function_call_arguments.delta&#34;</span>: <span style=color:#e6db74>&#34;tool.arguments.delta&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.function_call_arguments.done&#34;</span>: <span style=color:#e6db74>&#34;tool.called&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.done&#34;</span>: <span style=color:#e6db74>&#34;response.done&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;error&#34;</span>: <span style=color:#e6db74>&#34;error&#34;</span>,
+</span></span><span style=display:flex><span>}</span></span></code></pre></td></tr></table></div></div></div></figure><h3 id=pipe-3-backend-to-browser-added-events>Pipe 3: Backend to Browser (added events)</h3><p>These types are not part of the Voice Live protocol. The backend
+synthesises them so the browser can render the orchestration story.
+Each one is a normal <code>OutboundEvent</code> JSON message on the same WS.</p><table><thead><tr><th>Sample-only event</th><th>Emitted by</th><th>Carries</th></tr></thead><tbody><tr><td><code>pattern.selected</code></td><td><code>websocket_handler.py</code></td><td>Confirms the pattern the WS opened with.</td></tr><tr><td><code>session.prompt_updated</code></td><td><code>azure_session._apply_handoff</code></td><td>The new active prompt + <code>reason</code> for the change.</td></tr><tr><td><code>agent.handoff</code></td><td><code>azure_session._apply_handoff</code></td><td><code>from</code>, <code>to</code>, <code>reason</code>, <code>new_tools</code>.</td></tr><tr><td><code>tool.called</code> / <code>tool.result</code></td><td><code>azure_session._handle_tool_call</code></td><td>Tool name, arguments, returned payload.</td></tr><tr><td><code>supervisor.exchange</code></td><td><code>chat_supervisor.escalate_to_supervisor</code></td><td>Question the realtime model asked, supervisor&rsquo;s answer.</td></tr><tr><td><code>compaction.applied</code></td><td><code>azure_session._apply_compaction</code></td><td>Strategy name, deleted item ids, remaining count.</td></tr><tr><td><code>pattern.switching</code></td><td><code>azure_session._handle_pattern_switch</code></td><td>Sent right before tearing down a pattern at runtime.</td></tr><tr><td><code>text.sent</code></td><td><code>azure_session.send_text</code></td><td>Echo of a text-mode user turn for the transcript.</td></tr><tr><td><code>session.closed</code></td><td><code>websocket_handler.py</code></td><td>Final event before the browser WS closes.</td></tr></tbody></table><p>The handler that injects the first sample-only event right after WS
+open:</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>pattern.selected is synthesised by the backend, not Azure</span>
+<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/websocket_handler.py#L22-L35 target=_blank rel=noopener><code>backend/websocket_handler.py</code>
+<span class=coderef__lines>L22–L35</span></a></figcaption><div class=coderef__body data-start=22><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">25
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">26
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">27
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">28
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">29
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">30
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">31
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">32
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">33
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">34
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">35
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span>    safe_ws_send(ws, OutboundEvent(type<span style=color:#f92672>=</span>event_type, data<span style=color:#f92672>=</span>data <span style=color:#f92672>or</span> {})<span style=color:#f92672>.</span>to_json())
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>handle_websocket</span>(
+</span></span><span style=display:flex><span>    ws: Any, pattern_name: str <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;chat-supervisor&#34;</span>, session_config: dict <span style=color:#f92672>|</span> <span style=color:#66d9ef>None</span> <span style=color:#f92672>=</span> <span style=color:#66d9ef>None</span>,
+</span></span><span style=display:flex><span>) <span style=color:#f92672>-&gt;</span> <span style=color:#66d9ef>None</span>:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;Run a single voice session: forwards browser frames to Azure and back.&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    pattern <span style=color:#f92672>=</span> get_pattern(pattern_name)
+</span></span><span style=display:flex><span>    _emit_event(ws, <span style=color:#e6db74>&#34;pattern.selected&#34;</span>, {<span style=color:#e6db74>&#34;pattern&#34;</span>: pattern_name})
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    inbound: queue<span style=color:#f92672>.</span>Queue <span style=color:#f92672>=</span> queue<span style=color:#f92672>.</span>Queue()
+</span></span><span style=display:flex><span>    outbound: queue<span style=color:#f92672>.</span>Queue <span style=color:#f92672>=</span> queue<span style=color:#f92672>.</span>Queue()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    azure_error: list[str] <span style=color:#f92672>=</span> []</span></span></code></pre></td></tr></table></div></div></div></figure><p>And the one the patterns reach for whenever they swap prompts or tools
+at runtime, the source of <code>session.prompt_updated</code> and <code>agent.handoff</code>:</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>Handoff = ClientEventSessionUpdate + ResponseCreate + two synthetic events</span>
+<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/azure_session.py#L301-L337 target=_blank rel=noopener><code>backend/azure_session.py</code>
+<span class=coderef__lines>L301–L337</span></a></figcaption><div class=coderef__body data-start=301><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">301
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">302
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">303
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">304
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">305
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">306
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">307
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">308
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">309
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">310
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">311
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">312
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">313
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">314
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">315
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">316
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">317
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">318
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">319
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">320
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">321
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">322
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">323
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">324
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">325
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">326
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">327
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">328
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">329
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">330
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">331
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">332
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">333
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">334
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">335
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">336
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>_apply_handoff</span>(
+</span></span><span style=display:flex><span>    connection: Any,
+</span></span><span style=display:flex><span>    pattern: OrchestrationPattern,
+</span></span><span style=display:flex><span>    outbound: queue<span style=color:#f92672>.</span>Queue,
+</span></span><span style=display:flex><span>    result: dict,
+</span></span><span style=display:flex><span>) <span style=color:#f92672>-&gt;</span> <span style=color:#66d9ef>None</span>:
+</span></span><span style=display:flex><span>    new_tools_meta <span style=color:#f92672>=</span> result<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;new_tools&#34;</span>) <span style=color:#f92672>or</span> []
+</span></span><span style=display:flex><span>    outbound<span style=color:#f92672>.</span>put(OutboundEvent(type<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;agent.handoff&#34;</span>, data<span style=color:#f92672>=</span>{
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;from&#34;</span>: result<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;from_agent&#34;</span>),
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;to&#34;</span>: result<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;to_agent&#34;</span>),
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;reason&#34;</span>: result<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;reason&#34;</span>, <span style=color:#e6db74>&#34;&#34;</span>),
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;new_instructions_preview&#34;</span>: (result<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;new_instructions&#34;</span>) <span style=color:#f92672>or</span> <span style=color:#e6db74>&#34;&#34;</span>)[:<span style=color:#ae81ff>200</span>],
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;new_tools&#34;</span>: [t<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;name&#34;</span>, t<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;type&#34;</span>, <span style=color:#e6db74>&#34;?&#34;</span>)) <span style=color:#66d9ef>for</span> t <span style=color:#f92672>in</span> new_tools_meta],
+</span></span><span style=display:flex><span>    }))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    new_tools <span style=color:#f92672>=</span> build_function_tools(pattern)
+</span></span><span style=display:flex><span>    update_session <span style=color:#f92672>=</span> RequestSession(
+</span></span><span style=display:flex><span>        instructions<span style=color:#f92672>=</span>pattern<span style=color:#f92672>.</span>get_system_prompt(),
+</span></span><span style=display:flex><span>        tools<span style=color:#f92672>=</span>new_tools <span style=color:#66d9ef>if</span> new_tools <span style=color:#66d9ef>else</span> <span style=color:#66d9ef>None</span>,
+</span></span><span style=display:flex><span>    )
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>await</span> connection<span style=color:#f92672>.</span>send(ClientEventSessionUpdate(session<span style=color:#f92672>=</span>update_session))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    outbound<span style=color:#f92672>.</span>put(OutboundEvent(type<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;session.prompt_updated&#34;</span>, data<span style=color:#f92672>=</span>{
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;agent&#34;</span>: result<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;to_agent&#34;</span>),
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;prompt&#34;</span>: pattern<span style=color:#f92672>.</span>get_system_prompt(),
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;reason&#34;</span>: result<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;reason&#34;</span>, <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Handoff to </span><span style=color:#e6db74>{</span>result<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#39;to_agent&#39;</span>)<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>),
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>&#34;tools&#34;</span>: [t<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;name&#34;</span>, t<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;type&#34;</span>, <span style=color:#e6db74>&#34;?&#34;</span>)) <span style=color:#66d9ef>for</span> t <span style=color:#f92672>in</span> new_tools_meta],
+</span></span><span style=display:flex><span>    }))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    handoff_prompt <span style=color:#f92672>=</span> (
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;You have just been handed this conversation from the &#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;&#39;</span><span style=color:#e6db74>{</span>result<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#39;from_agent&#39;</span>, <span style=color:#e6db74>&#39;previous&#39;</span>)<span style=color:#e6db74>}</span><span style=color:#e6db74>&#39; agent. &#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Reason: </span><span style=color:#e6db74>{</span>result<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#39;reason&#39;</span>, <span style=color:#e6db74>&#39;&#39;</span>)<span style=color:#e6db74>}</span><span style=color:#e6db74>. &#34;</span>
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Introduce yourself briefly and continue the conversation.&#34;</span>
+</span></span><span style=display:flex><span>    )
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>await</span> connection<span style=color:#f92672>.</span>send(ClientEventResponseCreate(additional_instructions<span style=color:#f92672>=</span>handoff_prompt))
+</span></span></code></pre></td></tr></table></div></div></div></figure><h3 id=which-event-flows-through-which-pipe>Which event flows through which pipe</h3><div class=mermaid-wrap><button type=button class=mermaid-wrap__zoom aria-label="Expand diagram" title="Expand diagram">
+<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentcolor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6V3h3m7 3V3h-3M3 10v3h3m7-3v3h-3"/></svg>
+<span>Expand</span></button><div class=mermaid-wrap__scroll><pre class=mermaid>
+
+flowchart LR
+  subgraph BR[Browser]
+    UI[App / Dev UI]
+  end
+  subgraph BE[Backend session loop]
+    WS[WS handler]
+    AS[AzureSession]
+    PT[Pattern]
+  end
+  subgraph AZ[Azure Voice Live API]
+    VL[Voice Live WS]
+  end
+
+  UI -- audio / text.message / session.config / pattern.switch --> WS
+  WS -- input_audio_buffer.append / conversation.item.create / session.update --> VL
+  VL -- response.audio.* / response.audio_transcript.* / function_call_arguments.done / response.done --> AS
+  AS -- audio.delta / transcript.* / tool.called / response.done --> UI
+  AS -- agent.handoff / session.prompt_updated / supervisor.exchange / compaction.applied --> UI
+  PT -. emits .-> AS
+
+</pre></div></div><p>The right column (events that reach the browser) is the union of
+mapped Voice Live events and the sample-only events. Everything
+sample-specific stays on the backend-to-browser pipe. Azure never sees
+it.</p><h2 id=three-views-of-the-same-stream>Three views of the same stream</h2><p>The right rail can render the events as a list or a timeline, and a
+fullscreen mode is available for long calls. All three modes are
+re-derived from the same in-memory event log. They are formatting,
+not separate pipelines.</p><figure class=shot><a href=/img/07-events-list-rich.png target=_blank rel=noopener><img src=/img/07-events-list-rich.png alt="Events list showing categorized pills (session, audio, agent, tool, error, llm) and the chronological list of events." loading=lazy></a><figcaption class=shot__cap>Default view: filterable list with category pills.</figcaption></figure><figure class=shot><a href=/img/08-events-timeline-view.png target=_blank rel=noopener><img src=/img/08-events-timeline-view.png alt="Events rendered as a swimlane timeline, grouped by category." loading=lazy></a><figcaption class=shot__cap>Timeline view: same events, grouped by category for at-a-glance flow.</figcaption></figure><figure class=shot><a href=/img/09-fullscreen-timeline.png target=_blank rel=noopener><img src=/img/09-fullscreen-timeline.png alt="Fullscreen timeline modal with a wider canvas and richer event detail tooltips." loading=lazy></a><figcaption class=shot__cap>Fullscreen mode for long calls, useful when you need to see the entire shape of the conversation at once.</figcaption></figure><h2 id=compaction-keeping-the-context-window-healthy>Compaction: keeping the context window healthy</h2><p>Every time the realtime model responds, the input window grows by all
+prior conversation items the SDK still has registered. On a long call
+that wins you nothing and costs you tokens. The sample ships three
+opt-in strategies (and an <code>off</code> default) selected from the Session
+Config panel.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>NoCompaction, RollingWindow, and TokenBudget</span>
+<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/compaction.py#L18-L55 target=_blank rel=noopener><code>backend/compaction.py</code>
+<span class=coderef__lines>L18–L55</span></a></figcaption><div class=coderef__body data-start=18><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">25
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">26
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">27
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">28
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">29
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">30
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">31
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">32
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">33
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">34
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">35
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">36
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">37
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">38
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">39
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">40
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">41
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">42
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">43
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">44
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">45
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">46
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">47
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">48
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">49
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">50
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">51
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">52
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">53
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">54
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>NoCompaction</span>:
+</span></span><span style=display:flex><span>    name: str <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;off&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>select</span>(self, items: list[str], input_tokens_this_turn: int) <span style=color:#f92672>-&gt;</span> list[str]:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> []
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>@dataclass</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>RollingWindow</span>:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;Keep at most `max_items` recent items (pairs * 2).&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    max_items: int
+</span></span><span style=display:flex><span>    name: str <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;rolling&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>select</span>(self, items: list[str], input_tokens_this_turn: int) <span style=color:#f92672>-&gt;</span> list[str]:
+</span></span><span style=display:flex><span>        deleted: list[str] <span style=color:#f92672>=</span> []
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>while</span> len(items) <span style=color:#f92672>&gt;</span> self<span style=color:#f92672>.</span>max_items:
+</span></span><span style=display:flex><span>            deleted<span style=color:#f92672>.</span>append(items<span style=color:#f92672>.</span>pop(<span style=color:#ae81ff>0</span>))
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> deleted
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>@dataclass</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>TokenBudget</span>:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;Delete oldest 25</span><span style=color:#e6db74>% o</span><span style=color:#e6db74>f items when cumulative input crosses `budget`.&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    budget: int
+</span></span><span style=display:flex><span>    name: str <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;token_budget&#34;</span>
+</span></span><span style=display:flex><span>    _cumulative: int <span style=color:#f92672>=</span> field(default<span style=color:#f92672>=</span><span style=color:#ae81ff>0</span>, init<span style=color:#f92672>=</span><span style=color:#66d9ef>False</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>select</span>(self, items: list[str], input_tokens_this_turn: int) <span style=color:#f92672>-&gt;</span> list[str]:
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>_cumulative <span style=color:#f92672>+=</span> input_tokens_this_turn
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> self<span style=color:#f92672>.</span>_cumulative <span style=color:#f92672>&lt;=</span> self<span style=color:#f92672>.</span>budget <span style=color:#f92672>or</span> len(items) <span style=color:#f92672>&lt;=</span> <span style=color:#ae81ff>2</span>:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> []
+</span></span><span style=display:flex><span>        n_delete <span style=color:#f92672>=</span> max(<span style=color:#ae81ff>1</span>, len(items) <span style=color:#f92672>//</span> <span style=color:#ae81ff>4</span>)
+</span></span><span style=display:flex><span>        deleted <span style=color:#f92672>=</span> [items<span style=color:#f92672>.</span>pop(<span style=color:#ae81ff>0</span>) <span style=color:#66d9ef>for</span> _ <span style=color:#f92672>in</span> range(min(n_delete, len(items)))]
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>_cumulative <span style=color:#f92672>=</span> max(<span style=color:#ae81ff>0</span>, self<span style=color:#f92672>.</span>_cumulative <span style=color:#f92672>-</span> input_tokens_this_turn)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> deleted
+</span></span></code></pre></td></tr></table></div></div></div></figure><p>The factory just maps a config key to a strategy.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>Strategies are referenced by string name in the Session Config payload</span>
+<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/compaction.py#L58-L67 target=_blank rel=noopener><code>backend/compaction.py</code>
+<span class=coderef__lines>L58–L67</span></a></figcaption><div class=coderef__body data-start=58><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">58
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">59
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">60
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">61
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">62
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">63
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">64
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">65
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">66
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">67
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span>    <span style=color:#e6db74>&#34;off&#34;</span>: NoCompaction,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;rolling_5&#34;</span>: <span style=color:#66d9ef>lambda</span>: RollingWindow(max_items<span style=color:#f92672>=</span><span style=color:#ae81ff>10</span>, name<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;rolling_5&#34;</span>),
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;rolling_10&#34;</span>: <span style=color:#66d9ef>lambda</span>: RollingWindow(max_items<span style=color:#f92672>=</span><span style=color:#ae81ff>20</span>, name<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;rolling_10&#34;</span>),
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;token_budget_4k&#34;</span>: <span style=color:#66d9ef>lambda</span>: TokenBudget(budget<span style=color:#f92672>=</span><span style=color:#ae81ff>4000</span>, name<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;token_budget_4k&#34;</span>),
+</span></span><span style=display:flex><span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>make_strategy</span>(name: str <span style=color:#f92672>|</span> <span style=color:#66d9ef>None</span>) <span style=color:#f92672>-&gt;</span> CompactionStrategy:
+</span></span><span style=display:flex><span>    factory <span style=color:#f92672>=</span> _STRATEGIES<span style=color:#f92672>.</span>get(name <span style=color:#f92672>or</span> <span style=color:#e6db74>&#34;off&#34;</span>, NoCompaction)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> factory()</span></span></code></pre></td></tr></table></div></div></div></figure><p>When a strategy returns item IDs to delete, <code>_apply_compaction</code> issues a
+<code>ClientEventConversationItemDelete</code> for each one and emits a
+<code>compaction.applied</code> event so the developer view can show what happened.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>Compaction = item deletes + an event for the UI</span>
+<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/azure_session.py#L240-L263 target=_blank rel=noopener><code>backend/azure_session.py</code>
+<span class=coderef__lines>L240–L263</span></a></figcaption><div class=coderef__body data-start=240><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">240
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">241
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">242
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">243
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">244
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">245
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">246
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">247
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">248
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">249
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">250
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">251
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">252
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">253
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">254
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">255
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">256
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">257
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">258
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">259
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">260
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">261
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">262
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">263
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>_apply_compaction</span>(
+</span></span><span style=display:flex><span>    connection: Any,
+</span></span><span style=display:flex><span>    outbound: queue<span style=color:#f92672>.</span>Queue,
+</span></span><span style=display:flex><span>    conversation_item_ids: list[str],
+</span></span><span style=display:flex><span>    strategy,
+</span></span><span style=display:flex><span>    event_data: dict,
+</span></span><span style=display:flex><span>) <span style=color:#f92672>-&gt;</span> <span style=color:#66d9ef>None</span>:
+</span></span><span style=display:flex><span>    usage <span style=color:#f92672>=</span> event_data<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;usage&#34;</span>)
+</span></span><span style=display:flex><span>    input_tokens <span style=color:#f92672>=</span> usage<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;input_tokens&#34;</span>, <span style=color:#ae81ff>0</span>) <span style=color:#66d9ef>if</span> isinstance(usage, dict) <span style=color:#66d9ef>else</span> <span style=color:#ae81ff>0</span>
+</span></span><span style=display:flex><span>    deleted <span style=color:#f92672>=</span> strategy<span style=color:#f92672>.</span>select(conversation_item_ids, input_tokens)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> item_id <span style=color:#f92672>in</span> deleted:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>try</span>:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>await</span> connection<span style=color:#f92672>.</span>send(ClientEventConversationItemDelete(item_id<span style=color:#f92672>=</span>item_id))
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>except</span> <span style=color:#a6e22e>Exception</span> <span style=color:#66d9ef>as</span> exc:
+</span></span><span style=display:flex><span>            logger<span style=color:#f92672>.</span>warning(<span style=color:#e6db74>&#34;Compaction: failed to delete </span><span style=color:#e6db74>%s</span><span style=color:#e6db74>: </span><span style=color:#e6db74>%s</span><span style=color:#e6db74>&#34;</span>, item_id, exc)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> deleted:
+</span></span><span style=display:flex><span>        outbound<span style=color:#f92672>.</span>put(OutboundEvent(type<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;compaction.applied&#34;</span>, data<span style=color:#f92672>=</span>{
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;strategy&#34;</span>: strategy<span style=color:#f92672>.</span>name,
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;deleted_count&#34;</span>: len(deleted),
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;remaining_items&#34;</span>: len(conversation_item_ids),
+</span></span><span style=display:flex><span>        }))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># ---------------------------------------------------------------------------</span></span></span></code></pre></td></tr></table></div></div></div></figure><h2 id=how-a-compaction-event-looks-end-to-end>How a compaction event looks end to end</h2><div class=mermaid-wrap><button type=button class=mermaid-wrap__zoom aria-label="Expand diagram" title="Expand diagram">
+<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentcolor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6V3h3m7 3V3h-3M3 10v3h3m7-3v3h-3"/></svg>
+<span>Expand</span></button><div class=mermaid-wrap__scroll><pre class=mermaid>
+
+sequenceDiagram
+  autonumber
+  participant V as Realtime model
+  participant B as Backend session loop
+  participant A as Azure Voice Live API
+  participant F as Frontend events panel
+
+  V->>A: response.done {usage: {input_tokens: 4123}}
+  A-->>B: response.done event
+  B->>B: strategy.select(item_ids, 4123)
+  Note over B: TokenBudget(4000) → over budget,<br>delete oldest 25%
+  loop deleted items
+    B->>A: ClientEventConversationItemDelete(item_id)
+  end
+  B-->>F: compaction.applied {strategy, deleted_count, remaining_items}
+
+</pre></div></div><h2 id=picking-a-strategy>Picking a strategy</h2><table><thead><tr><th>Strategy</th><th>When to use</th></tr></thead><tbody><tr><td><code>off</code></td><td>Short calls, debugging, golden-path eval runs.</td></tr><tr><td><code>rolling_5</code> / <code>rolling_10</code></td><td>Predictable cap on items, regardless of token cost. Good for chatty domains where each turn is small.</td></tr><tr><td><code>token_budget_4k</code></td><td>Best when answers vary wildly in size — only acts when you actually approach the budget.</td></tr></tbody></table><aside class="callout callout--tip"><div class=callout__body>Compaction events are renderable in the timeline alongside everything else.
+A call that suddenly stops working can often be diagnosed by looking for an
+unexpected <code>compaction.applied</code> followed by an LLM that &ldquo;forgot&rdquo; something
+critical. Build that signal into your evals.</div></aside></div><nav class=pager><a class="pager__link pager__link--prev" href=/validation/><span class=pager__dir>← Previous</span>
+<span class=pager__name>Validation Flow</span>
+</a><a class="pager__link pager__link--next" href=/app-mode/><span class=pager__dir>Next →</span>
+<span class=pager__name>App vs Developer Mode</span></a></nav></article><footer class=docfoot><span>Built with Hugo · Source code references resolved at build time</span></footer></main></div><script type=module>
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: 'Outfit, system-ui, sans-serif',
+      fontSize: '15px',
+      primaryColor: '#1C1A15',
+      primaryTextColor: '#EDE8DF',
+      primaryBorderColor: '#E5A922',
+      lineColor: '#A49780',
+      secondaryColor: '#13120E',
+      tertiaryColor: '#0A0908',
+      noteBkgColor: '#1C1A15',
+      noteTextColor: '#F2C14E',
+      noteBorderColor: '#E5A922',
+      actorBkg: '#1C1A15',
+      actorBorder: '#E5A922',
+      actorTextColor: '#EDE8DF',
+      actorLineColor: '#6D6150',
+      signalColor: '#EDE8DF',
+      signalTextColor: '#EDE8DF',
+      labelBoxBkgColor: '#13120E',
+      labelBoxBorderColor: '#E5A922',
+      labelTextColor: '#F2C14E',
+      loopTextColor: '#A49780',
+      activationBkgColor: '#302B22',
+      activationBorderColor: '#E5A922',
+      sequenceNumberColor: '#000',
+    },
+    sequence: {
+      mirrorActors: false,
+      useMaxWidth: true,
+      wrap: true,
+      actorMargin: 70,
+      messageMargin: 40,
+      boxMargin: 12,
+      noteMargin: 12,
+      width: 160,
+      height: 52,
+      messageFontSize: 13,
+      actorFontSize: 14,
+      noteFontSize: 12,
+    },
+    flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+  });
+</script><div class=mermaid-modal id=mermaidModal hidden><div class=mermaid-modal__toolbar><button type=button data-zoom=out aria-label="Zoom out">−</button>
+<button type=button data-zoom=reset aria-label="Reset zoom">Reset</button>
+<button type=button data-zoom=in aria-label="Zoom in">+</button>
+<button type=button data-zoom=close aria-label=Close class=mermaid-modal__close>Close ✕</button></div><div class=mermaid-modal__viewport><div class=mermaid-modal__stage id=mermaidModalStage></div></div></div><script>(()=>{const n=document.getElementById("mermaidModal"),s=document.getElementById("mermaidModalStage");if(!n||!s)return;let e=1;const t=()=>{s.style.transform=`scale(${e})`},i=o=>{s.innerHTML="";const i=o.cloneNode(!0);i.removeAttribute("style"),i.style.height="auto",i.style.maxWidth="none";const a=i.viewBox&&i.viewBox.baseVal;a&&a.width&&(i.setAttribute("width",a.width),i.setAttribute("height",a.height),i.style.width=a.width+"px"),s.appendChild(i),e=1,t(),n.hidden=!1,document.body.style.overflow="hidden"},o=()=>{n.hidden=!0,s.innerHTML="",document.body.style.overflow=""};document.addEventListener("click",n=>{const a=n.target.closest(".mermaid-wrap__zoom");if(a){const t=a.closest(".mermaid-wrap"),e=t?.querySelector(".mermaid-wrap__scroll svg");e&&i(e);return}const r=n.target.closest("[data-zoom]");if(!r)return;const s=r.dataset.zoom;s==="in"&&(e=Math.min(4,e*1.25),t()),s==="out"&&(e=Math.max(.3,e/1.25),t()),s==="reset"&&(e=1,t()),s==="close"&&o()}),document.addEventListener("keydown",s=>{if(n.hidden)return;s.key==="Escape"&&o(),(s.key==="+"||s.key==="=")&&(e=Math.min(4,e*1.25),t()),s.key==="-"&&(e=Math.max(.3,e/1.25),t()),s.key==="0"&&(e=1,t())}),n.addEventListener("wheel",n=>{if(!n.ctrlKey&&!n.metaKey)return;n.preventDefault(),e=Math.min(4,Math.max(.3,e*(n.deltaY<0?1.1:1/1.1))),t()},{passive:!1})})()</script></body></html>

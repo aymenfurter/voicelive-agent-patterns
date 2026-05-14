@@ -1,0 +1,25 @@
+[project]
+name = "voicelive-qa"
+version = "1.0.0"
+description = "Voice Live API Q&A — Azure sample demonstrating agentic orchestration patterns"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["evals"]
+markers = [
+    "crawl: Unit-level tests (component correctness)",
+    "walk: Integration tests (golden dataset validation)",
+    "run: Simulation tests (text-based conversation)",
+    "azure: Tests requiring Azure credentials",
+    "crawl_harness: Crawl harness (TTS audio → Voice API single-turn)",
+    "walk_harness: Walk harness (noisy audio → Voice API single-turn)",
+    "run_harness: Run harness (model-simulated multi-turn)",
+]
+addopts = "-v --tb=short"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]

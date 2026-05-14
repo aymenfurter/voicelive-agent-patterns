@@ -1,0 +1,315 @@
+<!doctype html><html lang=en><head><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Architecture · Voice Live API — Orchestration Patterns</title>
+<meta name=description content="A code-driven walkthrough of agentic orchestration patterns built on top of the Azure Voice Live API."><link rel=stylesheet href=/css/app.css><link rel=preconnect href=https://fonts.googleapis.com><link rel=preconnect href=https://fonts.gstatic.com crossorigin><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel=stylesheet></head><body><header class=topbar><a class=topbar__brand href=/><span class=topbar__brand-text><span class=topbar__brand-name>Voice Live API</span>
+<span class=topbar__brand-sub>Orchestration Patterns</span></span></a><nav class=topbar__actions><a href=https://github.com/Azure-Samples/voicelive-agent-patterns target=_blank rel=noopener>GitHub</a></nav></header><div class=layout><aside class=sidebar><nav class=sidebar__nav><a class=sidebar__link href=/><span class=sidebar__link-num>01</span>
+<span>Introduction</span>
+</a><a class=sidebar__link href=/origins/><span class=sidebar__link-num>01</span>
+<span>Origins & Lineage</span>
+</a><a class="sidebar__link sidebar__link--active" href=/architecture/><span class=sidebar__link-num>02</span>
+<span>Architecture</span>
+</a><a class=sidebar__link href=/session-lifecycle/><span class=sidebar__link-num>03</span>
+<span>Session Lifecycle</span>
+</a><a class=sidebar__link href=/chat-supervisor/><span class=sidebar__link-num>04</span>
+<span>Chat-Supervisor</span>
+</a><a class=sidebar__link href=/sequential-handoff/><span class=sidebar__link-num>05</span>
+<span>Sequential Handoff</span>
+</a><a class=sidebar__link href=/validation/><span class=sidebar__link-num>06</span>
+<span>Validation Flow</span>
+</a><a class=sidebar__link href=/events-compaction/><span class=sidebar__link-num>07</span>
+<span>Events & Compaction</span>
+</a><a class=sidebar__link href=/app-mode/><span class=sidebar__link-num>08</span>
+<span>App vs Developer Mode</span>
+</a><a class=sidebar__link href=/evals/><span class=sidebar__link-num>08</span>
+<span>Evals</span>
+</a><a class=sidebar__link href=/integration/><span class=sidebar__link-num>09</span>
+<span>Integration Guide</span></a></nav></aside><main class=content><article class=doc><header class=doc__header><div class=doc__eyebrow>Component layout</div><h1 class=doc__title>Architecture</h1></header><div class=doc__body><p>The sample splits into three independent processes so each concern can
+be deployed on its own. The frontend talks WebSocket to the backend.
+The backend talks WebSocket to Azure and HTTPS to the question service.</p><figure class=shot><a href=/img/01-developer-mode-initial.png target=_blank rel=noopener><img src=/img/01-developer-mode-initial.png alt="Developer mode landing screen with the three status pills (Frontend, Backend, Q-Service) all green." loading=lazy></a><figcaption class=shot__cap>Developer mode shows process health for all three components in the bottom status bar.</figcaption></figure><h2 id=the-three-processes>The three processes</h2><table><thead><tr><th>Process</th><th>Tech</th><th>Responsibility</th></tr></thead><tbody><tr><td>Frontend</td><td>Vite + React + TypeScript</td><td>Captures microphone audio, plays back assistant audio, renders the timeline / data / flow views.</td></tr><tr><td>Backend</td><td>Flask + flask-sock + gevent</td><td>One WebSocket per call. Bridges browser audio to the Voice Live API and emits structured events.</td></tr><tr><td>Question service</td><td>Flask</td><td>Owns the intake catalog and answer validation. Stateless HTTPS API.</td></tr></tbody></table><h2 id=why-a-shared-asyncio-loop>Why a shared asyncio loop</h2><p>Gunicorn with gevent workers cannot directly host an asyncio session. The
+backend solves this with one shared event loop running on a native
+(non-monkey-patched) thread. Every WebSocket handler schedules its
+<code>run_azure_session</code> coroutine onto that loop with <code>asyncio.run_coroutine_threadsafe</code>.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>A single asyncio loop, started lazily on a native thread</span>
+<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/event_loop.py#L24-L47 target=_blank rel=noopener><code>backend/event_loop.py</code>
+<span class=coderef__lines>L24–L47</span></a></figcaption><div class=coderef__body data-start=24><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">25
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">26
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">27
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">28
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">29
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">30
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">31
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">32
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">33
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">34
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">35
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">36
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">37
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">38
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">39
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">40
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">41
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">42
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">43
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">44
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">45
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">46
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">47
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>get_shared_loop</span>() <span style=color:#f92672>-&gt;</span> asyncio<span style=color:#f92672>.</span>AbstractEventLoop:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;Return the shared event loop, starting it on first call.&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>global</span> _shared_loop
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> _shared_loop <span style=color:#f92672>is</span> <span style=color:#f92672>not</span> <span style=color:#66d9ef>None</span> <span style=color:#f92672>and</span> _shared_loop<span style=color:#f92672>.</span>is_running():
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> _shared_loop
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>with</span> _loop_lock:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> _shared_loop <span style=color:#f92672>is</span> <span style=color:#f92672>not</span> <span style=color:#66d9ef>None</span> <span style=color:#f92672>and</span> _shared_loop<span style=color:#f92672>.</span>is_running():
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> _shared_loop
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        ready <span style=color:#f92672>=</span> threading<span style=color:#f92672>.</span>Event()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>_run_loop</span>() <span style=color:#f92672>-&gt;</span> <span style=color:#66d9ef>None</span>:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>global</span> _shared_loop
+</span></span><span style=display:flex><span>            _shared_loop <span style=color:#f92672>=</span> asyncio<span style=color:#f92672>.</span>new_event_loop()
+</span></span><span style=display:flex><span>            asyncio<span style=color:#f92672>.</span>set_event_loop(_shared_loop)
+</span></span><span style=display:flex><span>            ready<span style=color:#f92672>.</span>set()
+</span></span><span style=display:flex><span>            _shared_loop<span style=color:#f92672>.</span>run_forever()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        thread_cls <span style=color:#f92672>=</span> _native_thread_class()
+</span></span><span style=display:flex><span>        thread_cls(target<span style=color:#f92672>=</span>_run_loop, daemon<span style=color:#f92672>=</span><span style=color:#66d9ef>True</span>)<span style=color:#f92672>.</span>start()
+</span></span><span style=display:flex><span>        ready<span style=color:#f92672>.</span>wait(timeout<span style=color:#f92672>=</span><span style=color:#ae81ff>5</span>)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>assert</span> _shared_loop <span style=color:#f92672>is</span> <span style=color:#f92672>not</span> <span style=color:#66d9ef>None</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> _shared_loop</span></span></code></pre></td></tr></table></div></div></div></figure><p>The handler then bridges the gevent WebSocket and the asyncio session
+with two thread-safe queues: <code>inbound</code> for browser to Azure, <code>outbound</code>
+for Azure to browser.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>One WebSocket call → one Voice Live API session</span>
+<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/websocket_handler.py#L25-L80 target=_blank rel=noopener><code>backend/websocket_handler.py</code>
+<span class=coderef__lines>L25–L80</span></a></figcaption><div class=coderef__body data-start=25><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">25
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">26
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">27
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">28
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">29
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">30
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">31
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">32
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">33
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">34
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">35
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">36
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">37
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">38
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">39
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">40
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">41
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">42
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">43
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">44
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">45
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">46
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">47
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">48
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">49
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">50
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">51
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">52
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">53
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">54
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">55
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">56
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">57
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">58
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">59
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">60
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">61
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">62
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">63
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">64
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">65
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">66
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">67
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">68
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">69
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">70
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">71
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">72
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">73
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">74
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">75
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">76
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">77
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">78
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">79
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">80
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>handle_websocket</span>(
+</span></span><span style=display:flex><span>    ws: Any, pattern_name: str <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;chat-supervisor&#34;</span>, session_config: dict <span style=color:#f92672>|</span> <span style=color:#66d9ef>None</span> <span style=color:#f92672>=</span> <span style=color:#66d9ef>None</span>,
+</span></span><span style=display:flex><span>) <span style=color:#f92672>-&gt;</span> <span style=color:#66d9ef>None</span>:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;Run a single voice session: forwards browser frames to Azure and back.&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    pattern <span style=color:#f92672>=</span> get_pattern(pattern_name)
+</span></span><span style=display:flex><span>    _emit_event(ws, <span style=color:#e6db74>&#34;pattern.selected&#34;</span>, {<span style=color:#e6db74>&#34;pattern&#34;</span>: pattern_name})
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    inbound: queue<span style=color:#f92672>.</span>Queue <span style=color:#f92672>=</span> queue<span style=color:#f92672>.</span>Queue()
+</span></span><span style=display:flex><span>    outbound: queue<span style=color:#f92672>.</span>Queue <span style=color:#f92672>=</span> queue<span style=color:#f92672>.</span>Queue()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    azure_error: list[str] <span style=color:#f92672>=</span> []
+</span></span><span style=display:flex><span>    azure_ready <span style=color:#f92672>=</span> threading<span style=color:#f92672>.</span>Event()
+</span></span><span style=display:flex><span>    azure_done <span style=color:#f92672>=</span> threading<span style=color:#f92672>.</span>Event()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    loop <span style=color:#f92672>=</span> get_shared_loop()
+</span></span><span style=display:flex><span>    future <span style=color:#f92672>=</span> asyncio<span style=color:#f92672>.</span>run_coroutine_threadsafe(
+</span></span><span style=display:flex><span>        run_azure_session(pattern, inbound, outbound, azure_ready, azure_done, session_config),
+</span></span><span style=display:flex><span>        loop,
+</span></span><span style=display:flex><span>    )
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>_watch_future</span>() <span style=color:#f92672>-&gt;</span> <span style=color:#66d9ef>None</span>:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>try</span>:
+</span></span><span style=display:flex><span>            future<span style=color:#f92672>.</span>result()
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>except</span> <span style=color:#a6e22e>Exception</span> <span style=color:#66d9ef>as</span> exc:
+</span></span><span style=display:flex><span>            logger<span style=color:#f92672>.</span>error(<span style=color:#e6db74>&#34;Azure session error: </span><span style=color:#e6db74>%s</span><span style=color:#e6db74>&#34;</span>, exc)
+</span></span><span style=display:flex><span>            azure_error<span style=color:#f92672>.</span>append(str(exc))
+</span></span><span style=display:flex><span>            outbound<span style=color:#f92672>.</span>put(OutboundEvent(type<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;error&#34;</span>, data<span style=color:#f92672>=</span>{<span style=color:#e6db74>&#34;message&#34;</span>: str(exc)}))
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>finally</span>:
+</span></span><span style=display:flex><span>            azure_done<span style=color:#f92672>.</span>set()
+</span></span><span style=display:flex><span>            outbound<span style=color:#f92672>.</span>put(stop_event())
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    watcher <span style=color:#f92672>=</span> threading<span style=color:#f92672>.</span>Thread(target<span style=color:#f92672>=</span>_watch_future, daemon<span style=color:#f92672>=</span><span style=color:#66d9ef>True</span>)
+</span></span><span style=display:flex><span>    watcher<span style=color:#f92672>.</span>start()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> <span style=color:#f92672>not</span> azure_ready<span style=color:#f92672>.</span>wait(timeout<span style=color:#f92672>=</span><span style=color:#ae81ff>15</span>):
+</span></span><span style=display:flex><span>        message <span style=color:#f92672>=</span> azure_error[<span style=color:#ae81ff>0</span>] <span style=color:#66d9ef>if</span> azure_error <span style=color:#66d9ef>else</span> <span style=color:#e6db74>&#34;Timeout connecting to Voice Live API&#34;</span>
+</span></span><span style=display:flex><span>        _emit_event(ws, <span style=color:#e6db74>&#34;error&#34;</span>, {<span style=color:#e6db74>&#34;message&#34;</span>: message})
+</span></span><span style=display:flex><span>        inbound<span style=color:#f92672>.</span>put(STOP)
+</span></span><span style=display:flex><span>        watcher<span style=color:#f92672>.</span>join(timeout<span style=color:#f92672>=</span><span style=color:#ae81ff>5</span>)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> azure_error:
+</span></span><span style=display:flex><span>        _emit_event(ws, <span style=color:#e6db74>&#34;error&#34;</span>, {<span style=color:#e6db74>&#34;message&#34;</span>: azure_error[<span style=color:#ae81ff>0</span>]})
+</span></span><span style=display:flex><span>        watcher<span style=color:#f92672>.</span>join(timeout<span style=color:#f92672>=</span><span style=color:#ae81ff>5</span>)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>try</span>:
+</span></span><span style=display:flex><span>        _bridge_loop(ws, inbound, outbound, azure_done)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>except</span> <span style=color:#a6e22e>Exception</span> <span style=color:#66d9ef>as</span> exc:
+</span></span><span style=display:flex><span>        logger<span style=color:#f92672>.</span>error(<span style=color:#e6db74>&#34;WS read error: </span><span style=color:#e6db74>%s</span><span style=color:#e6db74>&#34;</span>, exc)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>finally</span>:
+</span></span><span style=display:flex><span>        inbound<span style=color:#f92672>.</span>put(STOP)
+</span></span><span style=display:flex><span>        _drain_outbound(ws, outbound)
+</span></span><span style=display:flex><span>        _emit_event(ws, <span style=color:#e6db74>&#34;session.closed&#34;</span>, {})
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> <span style=color:#f92672>not</span> future<span style=color:#f92672>.</span>done():
+</span></span><span style=display:flex><span>            future<span style=color:#f92672>.</span>cancel()</span></span></code></pre></td></tr></table></div></div></div></figure><h2 id=end-to-end-data-flow>End-to-end data flow</h2><div class=mermaid-wrap><button type=button class=mermaid-wrap__zoom aria-label="Expand diagram" title="Expand diagram">
+<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentcolor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6V3h3m7 3V3h-3M3 10v3h3m7-3v3h-3"/></svg>
+<span>Expand</span></button><div class=mermaid-wrap__scroll><pre class=mermaid>
+
+sequenceDiagram
+  autonumber
+  participant U as User (mic + speakers)
+  participant F as Frontend (React)
+  participant B as Backend (Flask + gevent)
+  participant L as Asyncio loop (native thread)
+  participant A as Azure Voice Live API
+  participant Q as Question Service
+
+  U->>F: speaks
+  F->>B: audio frames over WebSocket
+  B->>L: enqueue inbound bytes
+  L->>A: input_audio_buffer.append
+  A-->>L: response.audio.delta, transcript.delta, function_call_arguments.done
+  L->>Q: validate_answer / get_questions (HTTPS)
+  Q-->>L: validation result
+  L->>A: function_call_output + response.create
+  A-->>L: response.audio.delta (assistant reply)
+  L->>B: enqueue outbound OutboundEvent
+  B-->>F: JSON events + audio frames
+  F-->>U: plays audio, renders timeline
+
+</pre></div></div><h2 id=what-the-backend-exposes-to-the-browser>What the backend exposes to the browser</h2><p>Every event the backend sends to the browser is an <code>OutboundEvent</code>: a
+small typed envelope with a <code>type</code> (<code>transcript.done</code>, <code>tool.called</code>,
+<code>agent.handoff</code>, <code>compaction.applied</code>, and so on) and a <code>data</code> payload.
+The full mapping from raw Azure event types to client types lives in
+<code>event_mapper.py</code>.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>Azure event names → friendly client event types</span>
+<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/event_mapper.py#L9-L25 target=_blank rel=noopener><code>backend/event_mapper.py</code>
+<span class=coderef__lines>L9–L25</span></a></figcaption><div class=coderef__body data-start=9><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">20
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">21
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">22
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">23
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">24
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">25
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span>_TYPE_MAP <span style=color:#f92672>=</span> {
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;session.created&#34;</span>: <span style=color:#e6db74>&#34;session.created&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;session.updated&#34;</span>: <span style=color:#e6db74>&#34;session.updated&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;input_audio_buffer.speech_started&#34;</span>: <span style=color:#e6db74>&#34;audio.started&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;input_audio_buffer.speech_stopped&#34;</span>: <span style=color:#e6db74>&#34;audio.stopped&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.created&#34;</span>: <span style=color:#e6db74>&#34;response.created&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.audio.delta&#34;</span>: <span style=color:#e6db74>&#34;audio.delta&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.audio.done&#34;</span>: <span style=color:#e6db74>&#34;audio.done&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.audio_transcript.delta&#34;</span>: <span style=color:#e6db74>&#34;transcript.delta&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.audio_transcript.done&#34;</span>: <span style=color:#e6db74>&#34;transcript.done&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.text.delta&#34;</span>: <span style=color:#e6db74>&#34;text.delta&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.text.done&#34;</span>: <span style=color:#e6db74>&#34;text.done&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.function_call_arguments.delta&#34;</span>: <span style=color:#e6db74>&#34;tool.arguments.delta&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.function_call_arguments.done&#34;</span>: <span style=color:#e6db74>&#34;tool.called&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;response.done&#34;</span>: <span style=color:#e6db74>&#34;response.done&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;error&#34;</span>: <span style=color:#e6db74>&#34;error&#34;</span>,
+</span></span><span style=display:flex><span>}</span></span></code></pre></td></tr></table></div></div></div></figure><p>That envelope is what the timeline view, the prompt diff panel, the
+data grid, and the API calls tab all consume. There is no second
+channel. Everything the UI shows is reconstructed from this stream,
+which is what makes the sample easy to extend: emit a new event type,
+render it.</p><h2 id=where-to-go-next>Where to go next</h2><ul><li><a href=/session-lifecycle/>Session lifecycle</a>. What one call looks like over the wire.</li><li><a href=/chat-supervisor/>Chat-Supervisor</a>. One voice agent plus a text supervisor.</li><li><a href=/sequential-handoff/>Sequential Handoff</a>. Six agents on a single Voice Live API session.</li></ul></div><nav class=pager><a class="pager__link pager__link--prev" href=/origins/><span class=pager__dir>← Previous</span>
+<span class=pager__name>Origins & Lineage</span>
+</a><a class="pager__link pager__link--next" href=/session-lifecycle/><span class=pager__dir>Next →</span>
+<span class=pager__name>Session Lifecycle</span></a></nav></article><footer class=docfoot><span>Built with Hugo · Source code references resolved at build time</span></footer></main></div><script type=module>
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: 'Outfit, system-ui, sans-serif',
+      fontSize: '15px',
+      primaryColor: '#1C1A15',
+      primaryTextColor: '#EDE8DF',
+      primaryBorderColor: '#E5A922',
+      lineColor: '#A49780',
+      secondaryColor: '#13120E',
+      tertiaryColor: '#0A0908',
+      noteBkgColor: '#1C1A15',
+      noteTextColor: '#F2C14E',
+      noteBorderColor: '#E5A922',
+      actorBkg: '#1C1A15',
+      actorBorder: '#E5A922',
+      actorTextColor: '#EDE8DF',
+      actorLineColor: '#6D6150',
+      signalColor: '#EDE8DF',
+      signalTextColor: '#EDE8DF',
+      labelBoxBkgColor: '#13120E',
+      labelBoxBorderColor: '#E5A922',
+      labelTextColor: '#F2C14E',
+      loopTextColor: '#A49780',
+      activationBkgColor: '#302B22',
+      activationBorderColor: '#E5A922',
+      sequenceNumberColor: '#000',
+    },
+    sequence: {
+      mirrorActors: false,
+      useMaxWidth: true,
+      wrap: true,
+      actorMargin: 70,
+      messageMargin: 40,
+      boxMargin: 12,
+      noteMargin: 12,
+      width: 160,
+      height: 52,
+      messageFontSize: 13,
+      actorFontSize: 14,
+      noteFontSize: 12,
+    },
+    flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+  });
+</script><div class=mermaid-modal id=mermaidModal hidden><div class=mermaid-modal__toolbar><button type=button data-zoom=out aria-label="Zoom out">−</button>
+<button type=button data-zoom=reset aria-label="Reset zoom">Reset</button>
+<button type=button data-zoom=in aria-label="Zoom in">+</button>
+<button type=button data-zoom=close aria-label=Close class=mermaid-modal__close>Close ✕</button></div><div class=mermaid-modal__viewport><div class=mermaid-modal__stage id=mermaidModalStage></div></div></div><script>(()=>{const n=document.getElementById("mermaidModal"),s=document.getElementById("mermaidModalStage");if(!n||!s)return;let e=1;const t=()=>{s.style.transform=`scale(${e})`},i=o=>{s.innerHTML="";const i=o.cloneNode(!0);i.removeAttribute("style"),i.style.height="auto",i.style.maxWidth="none";const a=i.viewBox&&i.viewBox.baseVal;a&&a.width&&(i.setAttribute("width",a.width),i.setAttribute("height",a.height),i.style.width=a.width+"px"),s.appendChild(i),e=1,t(),n.hidden=!1,document.body.style.overflow="hidden"},o=()=>{n.hidden=!0,s.innerHTML="",document.body.style.overflow=""};document.addEventListener("click",n=>{const a=n.target.closest(".mermaid-wrap__zoom");if(a){const t=a.closest(".mermaid-wrap"),e=t?.querySelector(".mermaid-wrap__scroll svg");e&&i(e);return}const r=n.target.closest("[data-zoom]");if(!r)return;const s=r.dataset.zoom;s==="in"&&(e=Math.min(4,e*1.25),t()),s==="out"&&(e=Math.max(.3,e/1.25),t()),s==="reset"&&(e=1,t()),s==="close"&&o()}),document.addEventListener("keydown",s=>{if(n.hidden)return;s.key==="Escape"&&o(),(s.key==="+"||s.key==="=")&&(e=Math.min(4,e*1.25),t()),s.key==="-"&&(e=Math.max(.3,e/1.25),t()),s.key==="0"&&(e=1,t())}),n.addEventListener("wheel",n=>{if(!n.ctrlKey&&!n.metaKey)return;n.preventDefault(),e=Math.min(4,Math.max(.3,e*(n.deltaY<0?1.1:1/1.1))),t()},{passive:!1})})()</script></body></html>

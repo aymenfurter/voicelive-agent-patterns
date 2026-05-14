@@ -1,0 +1,341 @@
+<!doctype html><html lang=en><head><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Validation flow · Voice Live API — Orchestration Patterns</title>
+<meta name=description content="A code-driven walkthrough of agentic orchestration patterns built on top of the Azure Voice Live API."><link rel=stylesheet href=/css/app.css><link rel=preconnect href=https://fonts.googleapis.com><link rel=preconnect href=https://fonts.gstatic.com crossorigin><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel=stylesheet></head><body><header class=topbar><a class=topbar__brand href=/><span class=topbar__brand-text><span class=topbar__brand-name>Voice Live API</span>
+<span class=topbar__brand-sub>Orchestration Patterns</span></span></a><nav class=topbar__actions><a href=https://github.com/Azure-Samples/voicelive-agent-patterns target=_blank rel=noopener>GitHub</a></nav></header><div class=layout><aside class=sidebar><nav class=sidebar__nav><a class=sidebar__link href=/><span class=sidebar__link-num>01</span>
+<span>Introduction</span>
+</a><a class=sidebar__link href=/origins/><span class=sidebar__link-num>01</span>
+<span>Origins & Lineage</span>
+</a><a class=sidebar__link href=/architecture/><span class=sidebar__link-num>02</span>
+<span>Architecture</span>
+</a><a class=sidebar__link href=/session-lifecycle/><span class=sidebar__link-num>03</span>
+<span>Session Lifecycle</span>
+</a><a class=sidebar__link href=/chat-supervisor/><span class=sidebar__link-num>04</span>
+<span>Chat-Supervisor</span>
+</a><a class=sidebar__link href=/sequential-handoff/><span class=sidebar__link-num>05</span>
+<span>Sequential Handoff</span>
+</a><a class="sidebar__link sidebar__link--active" href=/validation/><span class=sidebar__link-num>06</span>
+<span>Validation Flow</span>
+</a><a class=sidebar__link href=/events-compaction/><span class=sidebar__link-num>07</span>
+<span>Events & Compaction</span>
+</a><a class=sidebar__link href=/app-mode/><span class=sidebar__link-num>08</span>
+<span>App vs Developer Mode</span>
+</a><a class=sidebar__link href=/evals/><span class=sidebar__link-num>08</span>
+<span>Evals</span>
+</a><a class=sidebar__link href=/integration/><span class=sidebar__link-num>09</span>
+<span>Integration Guide</span></a></nav></aside><main class=content><article class=doc><header class=doc__header><div class=doc__eyebrow>When the caller is too vague</div><h1 class=doc__title>Validation flow</h1></header><div class=doc__body><p>The validation flow is the most concrete demo of why this sample uses
+two LLMs. The realtime model is great at speaking, but it should not be
+the sole judge of &ldquo;is this answer specific enough to record?&rdquo;. That
+decision belongs to a deterministic validator, with an LLM judge as a
+tiebreaker.</p><h2 id=the-trigger-a-vague-answer>The trigger: a vague answer</h2><p>Open the app in <strong>Text Mode</strong>, start a Chat-Supervisor session, and
+answer the incident date with something like <em>&ldquo;yesterday around 3pm&rdquo;</em>.
+The question service rejects it immediately.</p><figure class=shot><a href=/img/05-validation-rejection.png target=_blank rel=noopener><img src=/img/05-validation-rejection.png alt="Aria asks for the incident date. The caller types 'yesterday around 3pm'. Events panel shows tool.validate_answer, a Supervisor (gpt-4.1) consultation, and a Result with valid: false." loading=lazy></a><figcaption class=shot__cap>The orange Supervisor pill on the right is what makes this two-tier validation visible.</figcaption></figure><h2 id=tier-1-the-question-service>Tier 1: the question service</h2><p>The question service exposes a single <code>/validate</code> endpoint. Given an
+<code>answer</code> and either a <code>question_id</code> or explicit <code>acceptance_criteria</code>,
+it runs a small chain of typed validators. The catch-all check that
+bites &ldquo;yesterday around 3pm&rdquo; is the vague-quantifier filter.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>Words that automatically fail validation, regardless of question type</span>
+<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/question-service/validator.py#L7-L17 target=_blank rel=noopener><code>question-service/validator.py</code>
+<span class=coderef__lines>L7–L17</span></a></figcaption><div class=coderef__body data-start=7><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 7
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 8
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 9
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">16
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span>VAGUE_QUANTIFIERS: list[str] <span style=color:#f92672>=</span> [
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;a few&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;some&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;several&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;around&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;approximately&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;about&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;roughly&#34;</span>,
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;many&#34;</span>,
+</span></span><span style=display:flex><span>]
+</span></span></code></pre></td></tr></table></div></div></div></figure><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>Vague-quantifier check — runs before any type-specific validator</span>
+<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/question-service/validator.py#L73-L83 target=_blank rel=noopener><code>question-service/validator.py</code>
+<span class=coderef__lines>L73–L83</span></a></figcaption><div class=coderef__body data-start=73><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">73
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">74
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">75
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">76
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">77
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">78
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">79
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">80
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">81
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">82
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>_check_vague_quantifiers</span>(answer: str) <span style=color:#f92672>-&gt;</span> str <span style=color:#f92672>|</span> <span style=color:#66d9ef>None</span>:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;Check if the answer contains vague quantifiers.&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    answer_lower <span style=color:#f92672>=</span> answer<span style=color:#f92672>.</span>lower()
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> vague <span style=color:#f92672>in</span> VAGUE_QUANTIFIERS:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> vague <span style=color:#f92672>in</span> answer_lower:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> (
+</span></span><span style=display:flex><span>                <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Answer contains vague language (&#39;</span><span style=color:#e6db74>{</span>vague<span style=color:#e6db74>}</span><span style=color:#e6db74>&#39;). &#34;</span>
+</span></span><span style=display:flex><span>                <span style=color:#e6db74>&#34;Please provide a specific and precise response.&#34;</span>
+</span></span><span style=display:flex><span>            )
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> <span style=color:#66d9ef>None</span>
+</span></span></code></pre></td></tr></table></div></div></div></figure><p>The date-typed validator then enforces a concrete pattern.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>Date validator: rejects vague phrases, requires a concrete date pattern</span>
+<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/question-service/validator.py#L101-L133 target=_blank rel=noopener><code>question-service/validator.py</code>
+<span class=coderef__lines>L101–L133</span></a></figcaption><div class=coderef__body data-start=101><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">101
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">102
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">103
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">104
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">105
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">106
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">107
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">108
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">109
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">110
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">111
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">112
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">113
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">114
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">115
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">116
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">117
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">118
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">119
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">120
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">121
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">122
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">123
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">124
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">125
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">126
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">127
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">128
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">129
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">130
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">131
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">132
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>_validate_date</span>(answer: str, criteria: dict) <span style=color:#f92672>-&gt;</span> ValidationResult:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;Validate that the answer contains a specific date.&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Check reject patterns first</span>
+</span></span><span style=display:flex><span>    reject_patterns <span style=color:#f92672>=</span> criteria<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;reject_patterns&#34;</span>, [])
+</span></span><span style=display:flex><span>    answer_lower <span style=color:#f92672>=</span> answer<span style=color:#f92672>.</span>lower()
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> pattern <span style=color:#f92672>in</span> reject_patterns:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> pattern <span style=color:#f92672>in</span> answer_lower:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> ValidationResult(
+</span></span><span style=display:flex><span>                valid<span style=color:#f92672>=</span><span style=color:#66d9ef>False</span>,
+</span></span><span style=display:flex><span>                reason<span style=color:#f92672>=</span><span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Answer is too vague (&#39;</span><span style=color:#e6db74>{</span>pattern<span style=color:#e6db74>}</span><span style=color:#e6db74>&#39;). A specific date is required.&#34;</span>,
+</span></span><span style=display:flex><span>                clarifying_question<span style=color:#f92672>=</span>criteria<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;clarifying_prompt&#34;</span>),
+</span></span><span style=display:flex><span>            )
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># Check for date-like patterns</span>
+</span></span><span style=display:flex><span>    date_patterns <span style=color:#f92672>=</span> [
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>r</span><span style=color:#e6db74>&#34;\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4}&#34;</span>,  <span style=color:#75715e># MM/DD/YYYY, D.M.YYYY, etc.</span>
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>r</span><span style=color:#e6db74>&#34;(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}(st|nd|rd|th)?,?\s*\d{2,4}&#34;</span>,
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>r</span><span style=color:#e6db74>&#34;\d{1,2}(st|nd|rd|th)?\s+(of\s+)?(january|february|march|april|may|june|july|august|september|october|november|december),?\s*\d{2,4}&#34;</span>,
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>r</span><span style=color:#e6db74>&#34;(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\.?\s+\d{1,2}(st|nd|rd|th)?,?\s*\d{2,4}&#34;</span>,
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>r</span><span style=color:#e6db74>&#34;\d</span><span style=color:#e6db74>{4}</span><span style=color:#e6db74>[/\-\.]\d{1,2}[/\-\.]\d{1,2}&#34;</span>,  <span style=color:#75715e># YYYY-MM-DD, YYYY.MM.DD</span>
+</span></span><span style=display:flex><span>        <span style=color:#e6db74>r</span><span style=color:#e6db74>&#34;(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d</span><span style=color:#e6db74>{4}</span><span style=color:#e6db74>&#34;</span>,  <span style=color:#75715e># Month YYYY</span>
+</span></span><span style=display:flex><span>    ]
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> pattern <span style=color:#f92672>in</span> date_patterns:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> re<span style=color:#f92672>.</span>search(pattern, answer_lower):
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> ValidationResult(valid<span style=color:#f92672>=</span><span style=color:#66d9ef>True</span>, reason<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;Valid date provided.&#34;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> ValidationResult(
+</span></span><span style=display:flex><span>        valid<span style=color:#f92672>=</span><span style=color:#66d9ef>False</span>,
+</span></span><span style=display:flex><span>        reason<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;Could not identify a specific date in the answer.&#34;</span>,
+</span></span><span style=display:flex><span>        clarifying_question<span style=color:#f92672>=</span>criteria<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;clarifying_prompt&#34;</span>),
+</span></span><span style=display:flex><span>    )
+</span></span></code></pre></td></tr></table></div></div></div></figure><p>The validator returns a <code>ValidationResult</code> with <code>valid</code>, <code>reason</code>, and a
+<code>clarifying_question</code>. The Flask route just serializes it.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>The /validate endpoint</span>
+<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/question-service/app.py#L37-L66 target=_blank rel=noopener><code>question-service/app.py</code>
+<span class=coderef__lines>L37–L66</span></a></figcaption><div class=coderef__body data-start=37><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">37
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">38
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">39
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">40
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">41
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">42
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">43
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">44
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">45
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">46
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">47
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">48
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">49
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">50
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">51
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">52
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">53
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">54
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">55
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">56
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">57
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">58
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">59
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">60
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">61
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">62
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">63
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">64
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">65
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#a6e22e>@app.route</span>(<span style=color:#e6db74>&#34;/validate&#34;</span>, methods<span style=color:#f92672>=</span>[<span style=color:#e6db74>&#34;POST&#34;</span>])
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>validate</span>():
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;Validate an answer against acceptance criteria.&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>    data <span style=color:#f92672>=</span> request<span style=color:#f92672>.</span>get_json()
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> <span style=color:#f92672>not</span> data:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> jsonify({<span style=color:#e6db74>&#34;error&#34;</span>: <span style=color:#e6db74>&#34;Request body must be JSON.&#34;</span>}), <span style=color:#ae81ff>400</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    answer <span style=color:#f92672>=</span> data<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;answer&#34;</span>)
+</span></span><span style=display:flex><span>    question_id <span style=color:#f92672>=</span> data<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;question_id&#34;</span>)
+</span></span><span style=display:flex><span>    acceptance_criteria <span style=color:#f92672>=</span> data<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;acceptance_criteria&#34;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> answer <span style=color:#f92672>is</span> <span style=color:#66d9ef>None</span>:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> jsonify({<span style=color:#e6db74>&#34;error&#34;</span>: <span style=color:#e6db74>&#34;Field &#39;answer&#39; is required.&#34;</span>}), <span style=color:#ae81ff>400</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> <span style=color:#f92672>not</span> acceptance_criteria <span style=color:#f92672>and</span> <span style=color:#f92672>not</span> question_id:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> jsonify({
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;error&#34;</span>: <span style=color:#e6db74>&#34;Either &#39;acceptance_criteria&#39; or &#39;question_id&#39; must be provided.&#34;</span>
+</span></span><span style=display:flex><span>        }), <span style=color:#ae81ff>400</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#75715e># If question_id provided, look up criteria</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> question_id <span style=color:#f92672>and</span> <span style=color:#f92672>not</span> acceptance_criteria:
+</span></span><span style=display:flex><span>        acceptance_criteria <span style=color:#f92672>=</span> _find_criteria_by_question_id(question_id)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> <span style=color:#f92672>not</span> acceptance_criteria:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> jsonify({<span style=color:#e6db74>&#34;error&#34;</span>: <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Unknown question_id &#39;</span><span style=color:#e6db74>{</span>question_id<span style=color:#e6db74>}</span><span style=color:#e6db74>&#39;.&#34;</span>}), <span style=color:#ae81ff>404</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    result: ValidationResult <span style=color:#f92672>=</span> validate_answer(answer, acceptance_criteria)
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> jsonify(result<span style=color:#f92672>.</span>to_dict())
+</span></span><span style=display:flex><span>
+</span></span></code></pre></td></tr></table></div></div></div></figure><h2 id=tier-2-the-supervisor>Tier 2: the supervisor</h2><p>In Chat-Supervisor, a tier-1 failure is not the final word. The pattern
+escalates to <code>gpt-4.1</code> with the original answer and the service&rsquo;s verdict
+attached, and asks for a structured judgment.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>validate_answer escalates failures to the supervisor</span>
+<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/patterns/chat_supervisor.py#L137-L160 target=_blank rel=noopener><code>backend/patterns/chat_supervisor.py</code>
+<span class=coderef__lines>L137–L160</span></a></figcaption><div class=coderef__body data-start=137><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">137
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">138
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">139
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">140
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">141
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">142
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">143
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">144
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">145
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">146
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">147
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">148
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">149
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">150
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">151
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">152
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">153
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">154
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">155
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">156
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">157
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">158
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">159
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">160
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span>
+</span></span><span style=display:flex><span>        result <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> question_client<span style=color:#f92672>.</span>validate_answer(question_id, answer)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> result<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;valid&#34;</span>):
+</span></span><span style=display:flex><span>            self<span style=color:#f92672>.</span>_session<span style=color:#f92672>.</span>record_answer(question_id, answer)
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> {<span style=color:#e6db74>&#34;valid&#34;</span>: <span style=color:#66d9ef>True</span>, <span style=color:#e6db74>&#34;message&#34;</span>: <span style=color:#e6db74>&#34;Answer accepted.&#34;</span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        supervisor <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> self<span style=color:#f92672>.</span>_consult(
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Validate this answer for an insurance claim intake question.</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Question ID: </span><span style=color:#e6db74>{</span>question_id<span style=color:#e6db74>}</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Answer: </span><span style=color:#e6db74>{</span>answer<span style=color:#e6db74>}</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Service validation result: </span><span style=color:#e6db74>{</span>json<span style=color:#f92672>.</span>dumps(result)<span style=color:#e6db74>}</span><span style=color:#ae81ff>\n\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;Determine if the answer is acceptable or needs clarification. &#34;</span>
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#39;Return JSON: {&#34;valid&#34;: bool, &#34;message&#34;: str, &#34;suggestion&#34;: str|null}&#39;</span>
+</span></span><span style=display:flex><span>        )
+</span></span><span style=display:flex><span>        response <span style=color:#f92672>=</span> supervisor<span style=color:#f92672>.</span>to_dict()
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> response<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;valid&#34;</span>):
+</span></span><span style=display:flex><span>            self<span style=color:#f92672>.</span>_session<span style=color:#f92672>.</span>record_answer(question_id, answer)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> response
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>_handle_submit_claim_data</span>(self, arguments: dict[str, Any]) <span style=color:#f92672>-&gt;</span> dict[str, Any]:
+</span></span><span style=display:flex><span>        claim_type <span style=color:#f92672>=</span> arguments<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;claim_type&#34;</span>, self<span style=color:#f92672>.</span>_session<span style=color:#f92672>.</span>claim_type <span style=color:#f92672>or</span> <span style=color:#e6db74>&#34;auto&#34;</span>)
+</span></span><span style=display:flex><span>        collected_data <span style=color:#f92672>=</span> arguments<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;collected_data&#34;</span>, self<span style=color:#f92672>.</span>_session<span style=color:#f92672>.</span>collected_data)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        completeness <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> self<span style=color:#f92672>.</span>_consult(</span></span></code></pre></td></tr></table></div></div></div></figure><p>This is what gives the demo its character: an answer the deterministic
+validator rejects can still be accepted by the supervisor when the
+context makes it unambiguous. The reverse is also true: the supervisor
+can reject an answer the validator naively accepted.</p><h2 id=when-the-answer-is-good>When the answer is good</h2><p>The same flow with <em>&ldquo;May 13, 2026&rdquo;</em> never reaches the supervisor at all.
+The question service returns <code>valid: true</code>, the pattern records the
+answer, and the realtime model moves on.</p><figure class=shot><a href=/img/06-validation-success.png target=_blank rel=noopener><img src=/img/06-validation-success.png alt="Aria asks for the incident date. The caller types 'May 13, 2026'. Events panel shows tool.validate_answer and Result valid: true with no supervisor consultation." loading=lazy></a><figcaption class=shot__cap>No supervisor pill this time — the answer cleared tier 1 and recording happened in-process.</figcaption></figure><h2 id=end-to-end>End-to-end</h2><div class=mermaid-wrap><button type=button class=mermaid-wrap__zoom aria-label="Expand diagram" title="Expand diagram">
+<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentcolor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6V3h3m7 3V3h-3M3 10v3h3m7-3v3h-3"/></svg>
+<span>Expand</span></button><div class=mermaid-wrap__scroll><pre class=mermaid>
+
+sequenceDiagram
+  autonumber
+  participant V as Aria (voice)
+  participant B as Backend (chat-supervisor pattern)
+  participant Q as Question Service
+  participant S as Supervisor (gpt-4.1)
+
+  V->>B: validate_answer{question_id: incident_date, answer: "yesterday around 3pm"}
+  B->>Q: POST /validate
+  Q-->>B: {valid: false, reason: "vague language"}
+  Note over B: tier-1 fail → escalate
+  B->>S: complete_json(prompt with service result)
+  S-->>B: {valid: false, message: "Need a calendar date.", suggestion: "..."}
+  B-->>F: supervisor.exchange event (renders in events rail)
+  B-->>V: function_call_output {valid: false, message, suggestion}
+  V->>U: "Could you give me the exact calendar date?"
+
+</pre></div></div><aside class="callout callout--note"><div class=callout__body>The Sequential Handoff pattern uses the same question service but skips
+the supervisor escalation — each specialist agent re-asks the caller in
+its own voice when the validator says no.</div></aside><h2 id=why-design-it-this-way>Why design it this way</h2><ul><li>Determinism where you can. The vague-quantifier list, the regex date
+patterns, the policy-number formats. Cheap to maintain and impossible
+to flake.</li><li>Judgment where you need it. Real callers say things the validator
+cannot anticipate. The supervisor is the escape hatch.</li><li>Observability for both. Every validation hop and every supervisor
+exchange is an event, so you can debug a flaky call by replaying the
+timeline instead of digging through logs.</li></ul></div><nav class=pager><a class="pager__link pager__link--prev" href=/sequential-handoff/><span class=pager__dir>← Previous</span>
+<span class=pager__name>Sequential Handoff</span>
+</a><a class="pager__link pager__link--next" href=/events-compaction/><span class=pager__dir>Next →</span>
+<span class=pager__name>Events & Compaction</span></a></nav></article><footer class=docfoot><span>Built with Hugo · Source code references resolved at build time</span></footer></main></div><script type=module>
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: 'Outfit, system-ui, sans-serif',
+      fontSize: '15px',
+      primaryColor: '#1C1A15',
+      primaryTextColor: '#EDE8DF',
+      primaryBorderColor: '#E5A922',
+      lineColor: '#A49780',
+      secondaryColor: '#13120E',
+      tertiaryColor: '#0A0908',
+      noteBkgColor: '#1C1A15',
+      noteTextColor: '#F2C14E',
+      noteBorderColor: '#E5A922',
+      actorBkg: '#1C1A15',
+      actorBorder: '#E5A922',
+      actorTextColor: '#EDE8DF',
+      actorLineColor: '#6D6150',
+      signalColor: '#EDE8DF',
+      signalTextColor: '#EDE8DF',
+      labelBoxBkgColor: '#13120E',
+      labelBoxBorderColor: '#E5A922',
+      labelTextColor: '#F2C14E',
+      loopTextColor: '#A49780',
+      activationBkgColor: '#302B22',
+      activationBorderColor: '#E5A922',
+      sequenceNumberColor: '#000',
+    },
+    sequence: {
+      mirrorActors: false,
+      useMaxWidth: true,
+      wrap: true,
+      actorMargin: 70,
+      messageMargin: 40,
+      boxMargin: 12,
+      noteMargin: 12,
+      width: 160,
+      height: 52,
+      messageFontSize: 13,
+      actorFontSize: 14,
+      noteFontSize: 12,
+    },
+    flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' }
+  });
+</script><div class=mermaid-modal id=mermaidModal hidden><div class=mermaid-modal__toolbar><button type=button data-zoom=out aria-label="Zoom out">−</button>
+<button type=button data-zoom=reset aria-label="Reset zoom">Reset</button>
+<button type=button data-zoom=in aria-label="Zoom in">+</button>
+<button type=button data-zoom=close aria-label=Close class=mermaid-modal__close>Close ✕</button></div><div class=mermaid-modal__viewport><div class=mermaid-modal__stage id=mermaidModalStage></div></div></div><script>(()=>{const n=document.getElementById("mermaidModal"),s=document.getElementById("mermaidModalStage");if(!n||!s)return;let e=1;const t=()=>{s.style.transform=`scale(${e})`},i=o=>{s.innerHTML="";const i=o.cloneNode(!0);i.removeAttribute("style"),i.style.height="auto",i.style.maxWidth="none";const a=i.viewBox&&i.viewBox.baseVal;a&&a.width&&(i.setAttribute("width",a.width),i.setAttribute("height",a.height),i.style.width=a.width+"px"),s.appendChild(i),e=1,t(),n.hidden=!1,document.body.style.overflow="hidden"},o=()=>{n.hidden=!0,s.innerHTML="",document.body.style.overflow=""};document.addEventListener("click",n=>{const a=n.target.closest(".mermaid-wrap__zoom");if(a){const t=a.closest(".mermaid-wrap"),e=t?.querySelector(".mermaid-wrap__scroll svg");e&&i(e);return}const r=n.target.closest("[data-zoom]");if(!r)return;const s=r.dataset.zoom;s==="in"&&(e=Math.min(4,e*1.25),t()),s==="out"&&(e=Math.max(.3,e/1.25),t()),s==="reset"&&(e=1,t()),s==="close"&&o()}),document.addEventListener("keydown",s=>{if(n.hidden)return;s.key==="Escape"&&o(),(s.key==="+"||s.key==="=")&&(e=Math.min(4,e*1.25),t()),s.key==="-"&&(e=Math.max(.3,e/1.25),t()),s.key==="0"&&(e=1,t())}),n.addEventListener("wheel",n=>{if(!n.ctrlKey&&!n.metaKey)return;n.preventDefault(),e=Math.min(4,Math.max(.3,e*(n.deltaY<0?1.1:1/1.1))),t()},{passive:!1})})()</script></body></html>

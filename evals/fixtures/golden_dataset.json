@@ -1,0 +1,320 @@
+{
+  "scenarios": [
+    {
+      "id": "happy_path_auto",
+      "name": "Happy Path - Auto Claim",
+      "description": "Complete auto insurance claim with all valid answers",
+      "turns": [
+        {"role": "agent", "contains": "what type"},
+        {"role": "user", "text": "I need to file an auto insurance claim."},
+        {"role": "agent", "contains": "when did"},
+        {"role": "user", "text": "The accident happened on March 15, 2024."},
+        {"role": "agent", "contains": "policy number"},
+        {"role": "user", "text": "POL12345678"},
+        {"role": "agent", "contains": "full name"},
+        {"role": "user", "text": "The policyholder is John Michael Smith."},
+        {"role": "agent", "contains": "phone"},
+        {"role": "user", "text": "You can reach me at (555) 867-5309."},
+        {"role": "agent", "contains": "description"},
+        {"role": "user", "text": "I was stopped at a red light on Main Street when a blue sedan rear-ended my vehicle, causing damage to the rear bumper and trunk of my 2021 Honda Civic."},
+        {"role": "agent", "contains": "make"},
+        {"role": "user", "text": "It's a 2021 Honda Civic LX in silver."},
+        {"role": "agent", "contains": "other"},
+        {"role": "user", "text": "Yes, the other driver was in a blue 2019 Ford Focus. We exchanged insurance information at the scene."},
+        {"role": "agent", "contains": "police"},
+        {"role": "user", "text": "Yes, a police report was filed. The report number is PR-2024-03158."}
+      ],
+      "expected_output": {
+        "claim_type": "auto",
+        "date_of_incident": "2024-03-15",
+        "policy_number": "POL12345678",
+        "claimant_name": "John Michael Smith",
+        "contact_phone": "(555) 867-5309",
+        "incident_description": "Rear-ended at red light on Main Street, damage to rear bumper and trunk of 2021 Honda Civic",
+        "vehicle_info": "2021 Honda Civic LX silver",
+        "other_parties": "Blue 2019 Ford Focus, exchanged insurance info",
+        "police_report": "Yes, PR-2024-03158"
+      },
+      "validations": {
+        "all_top_level_answered": true,
+        "all_branch_answered": true,
+        "no_ambiguity": true,
+        "complete": true
+      }
+    },
+    {
+      "id": "happy_path_property",
+      "name": "Happy Path - Property Claim",
+      "description": "Complete property insurance claim with all valid answers",
+      "turns": [
+        {"role": "agent", "contains": "what type"},
+        {"role": "user", "text": "I'm filing a property insurance claim."},
+        {"role": "agent", "contains": "when did"},
+        {"role": "user", "text": "The damage occurred on January 10, 2024 during a severe storm."},
+        {"role": "agent", "contains": "policy number"},
+        {"role": "user", "text": "HOM98765432"},
+        {"role": "agent", "contains": "full name"},
+        {"role": "user", "text": "Sarah Elizabeth Johnson."},
+        {"role": "agent", "contains": "phone"},
+        {"role": "user", "text": "My phone number is 555-234-5678."},
+        {"role": "agent", "contains": "description"},
+        {"role": "user", "text": "A windstorm with hail caused significant damage to my home. Roof shingles were torn off, the front gutter was completely detached, and water leaked into the attic damaging insulation and drywall."},
+        {"role": "agent", "contains": "address"},
+        {"role": "user", "text": "The property is at 742 Evergreen Terrace, Springfield, IL 62704."},
+        {"role": "agent", "contains": "damage"},
+        {"role": "user", "text": "The roof shingles on the north side, the front gutter system, attic insulation, and second floor ceiling drywall were all damaged."},
+        {"role": "agent", "contains": "temporary repairs"},
+        {"role": "user", "text": "Yes, I placed a tarp over the damaged section of the roof and put buckets in the attic to catch remaining drips."}
+      ],
+      "expected_output": {
+        "claim_type": "property",
+        "date_of_incident": "2024-01-10",
+        "policy_number": "HOM98765432",
+        "claimant_name": "Sarah Elizabeth Johnson",
+        "contact_phone": "555-234-5678",
+        "incident_description": "Severe windstorm with hail damaged roof, gutter, attic insulation and drywall",
+        "property_address": "742 Evergreen Terrace, Springfield, IL 62704",
+        "damage_list": "Roof shingles north side, front gutter system, attic insulation, second floor ceiling drywall",
+        "temporary_repairs": "Yes, tarped roof and placed buckets in attic"
+      },
+      "validations": {
+        "all_top_level_answered": true,
+        "all_branch_answered": true,
+        "no_ambiguity": true,
+        "complete": true
+      }
+    },
+    {
+      "id": "happy_path_health",
+      "name": "Happy Path - Health Claim",
+      "description": "Complete health insurance claim with all valid answers",
+      "turns": [
+        {"role": "agent", "contains": "what type"},
+        {"role": "user", "text": "I need to file a health insurance claim."},
+        {"role": "agent", "contains": "when did"},
+        {"role": "user", "text": "I received treatment on February 20, 2024."},
+        {"role": "agent", "contains": "policy number"},
+        {"role": "user", "text": "HTH55667788"},
+        {"role": "agent", "contains": "full name"},
+        {"role": "user", "text": "Michael Robert Chen."},
+        {"role": "agent", "contains": "phone"},
+        {"role": "user", "text": "My number is (555) 444-3322."},
+        {"role": "agent", "contains": "description"},
+        {"role": "user", "text": "I slipped on ice in my driveway and fractured my left wrist. I went to the emergency room where they took X-rays, set the bone, and applied a cast. I was prescribed pain medication and referred to an orthopedic specialist for follow-up."},
+        {"role": "agent", "contains": "provider"},
+        {"role": "user", "text": "I was treated at Springfield General Hospital in the emergency department."},
+        {"role": "agent", "contains": "diagnosis"},
+        {"role": "user", "text": "The diagnosis was a distal radius fracture of the left wrist. Treatment included X-ray imaging, closed reduction, and casting."},
+        {"role": "agent", "contains": "other"},
+        {"role": "user", "text": "No, I do not have any other active health insurance policies."}
+      ],
+      "expected_output": {
+        "claim_type": "health",
+        "date_of_incident": "2024-02-20",
+        "policy_number": "HTH55667788",
+        "claimant_name": "Michael Robert Chen",
+        "contact_phone": "(555) 444-3322",
+        "incident_description": "Slipped on ice, fractured left wrist, ER visit with X-rays and casting",
+        "healthcare_provider": "Springfield General Hospital, emergency department",
+        "diagnosis": "Distal radius fracture, closed reduction and casting",
+        "other_insurance": "No"
+      },
+      "validations": {
+        "all_top_level_answered": true,
+        "all_branch_answered": true,
+        "no_ambiguity": true,
+        "complete": true
+      }
+    },
+    {
+      "id": "vague_answers_clarification",
+      "name": "Vague Answers Requiring Clarification",
+      "description": "User provides vague answers that trigger clarifying questions",
+      "turns": [
+        {"role": "agent", "contains": "what type"},
+        {"role": "user", "text": "I need to file an auto insurance claim."},
+        {"role": "agent", "contains": "when did"},
+        {"role": "user", "text": "It happened recently."},
+        {"role": "agent", "contains": "specific date"},
+        {"role": "user", "text": "Oh right, it was April 3, 2024."},
+        {"role": "agent", "contains": "policy number"},
+        {"role": "user", "text": "Let me check... it's POL99887766."},
+        {"role": "agent", "contains": "full name"},
+        {"role": "user", "text": "David Lee."},
+        {"role": "agent", "contains": "phone"},
+        {"role": "user", "text": "555-111-2222."},
+        {"role": "agent", "contains": "description"},
+        {"role": "user", "text": "Stuff happened."},
+        {"role": "agent", "contains": "elaborate"},
+        {"role": "user", "text": "Sorry, I was driving through a parking lot when another car backed out of a space without looking and hit the front left fender of my car, cracking the headlight and denting the panel."}
+      ],
+      "expected_output": {
+        "claim_type": "auto",
+        "date_of_incident": "2024-04-03",
+        "policy_number": "POL99887766",
+        "claimant_name": "David Lee",
+        "contact_phone": "555-111-2222",
+        "incident_description": "Car backed into front left fender in parking lot, cracked headlight and dented panel"
+      },
+      "validations": {
+        "all_top_level_answered": true,
+        "all_branch_answered": false,
+        "no_ambiguity": true,
+        "complete": false,
+        "clarifications_needed": ["incident_date", "incident_description"]
+      }
+    },
+    {
+      "id": "ambiguous_quantities_rejected",
+      "name": "Ambiguous Quantities Rejected",
+      "description": "Answers with vague quantifiers are rejected and user must provide specifics",
+      "turns": [
+        {"role": "agent", "contains": "what type"},
+        {"role": "user", "text": "Property claim please."},
+        {"role": "agent", "contains": "when did"},
+        {"role": "user", "text": "May 1, 2024."},
+        {"role": "agent", "contains": "policy number"},
+        {"role": "user", "text": "PRO11223344."},
+        {"role": "agent", "contains": "full name"},
+        {"role": "user", "text": "Angela Marie Torres."},
+        {"role": "agent", "contains": "phone"},
+        {"role": "user", "text": "(555) 999-8877."},
+        {"role": "agent", "contains": "description"},
+        {"role": "user", "text": "A few items were damaged in my basement when the pipe burst and water flooded the area causing damage to several pieces of furniture and some electronics."},
+        {"role": "agent", "contains": "specific"},
+        {"role": "user", "text": "A pipe burst in the basement ceiling. Water damaged my leather couch, oak bookshelf, desktop computer, and two storage boxes of documents. The flooding was three inches deep across the entire basement floor."}
+      ],
+      "expected_output": {
+        "claim_type": "property",
+        "date_of_incident": "2024-05-01",
+        "policy_number": "PRO11223344",
+        "claimant_name": "Angela Marie Torres",
+        "contact_phone": "(555) 999-8877",
+        "incident_description": "Pipe burst flooding basement, damaged couch, bookshelf, computer, documents"
+      },
+      "validations": {
+        "all_top_level_answered": true,
+        "all_branch_answered": false,
+        "no_ambiguity": true,
+        "complete": false,
+        "ambiguity_rejected": ["incident_description"]
+      }
+    },
+    {
+      "id": "incomplete_description",
+      "name": "Incomplete Description",
+      "description": "User provides too brief a description and must elaborate",
+      "turns": [
+        {"role": "agent", "contains": "what type"},
+        {"role": "user", "text": "Auto claim."},
+        {"role": "agent", "contains": "when did"},
+        {"role": "user", "text": "June 22, 2024."},
+        {"role": "agent", "contains": "policy number"},
+        {"role": "user", "text": "AUT44556677."},
+        {"role": "agent", "contains": "full name"},
+        {"role": "user", "text": "Robert James Wilson."},
+        {"role": "agent", "contains": "phone"},
+        {"role": "user", "text": "555-333-4444."},
+        {"role": "agent", "contains": "description"},
+        {"role": "user", "text": "Fender bender."},
+        {"role": "agent", "contains": "elaborate"},
+        {"role": "user", "text": "I was in stop-and-go traffic on Interstate 90 when the car in front of me braked suddenly. I was unable to stop in time and my front bumper collided with their rear bumper at low speed, causing cosmetic damage to both vehicles."}
+      ],
+      "expected_output": {
+        "claim_type": "auto",
+        "date_of_incident": "2024-06-22",
+        "policy_number": "AUT44556677",
+        "claimant_name": "Robert James Wilson",
+        "contact_phone": "555-333-4444",
+        "incident_description": "Rear-ended car in stop-and-go traffic on I-90, cosmetic bumper damage"
+      },
+      "validations": {
+        "all_top_level_answered": true,
+        "all_branch_answered": false,
+        "no_ambiguity": true,
+        "complete": false,
+        "clarifications_needed": ["incident_description"]
+      }
+    },
+    {
+      "id": "invalid_policy_number",
+      "name": "Invalid Policy Number",
+      "description": "User provides policy number in wrong format and must correct it",
+      "turns": [
+        {"role": "agent", "contains": "what type"},
+        {"role": "user", "text": "Health insurance claim."},
+        {"role": "agent", "contains": "when did"},
+        {"role": "user", "text": "March 30, 2024."},
+        {"role": "agent", "contains": "policy number"},
+        {"role": "user", "text": "It's ABC."},
+        {"role": "agent", "contains": "8 to 12"},
+        {"role": "user", "text": "HTH12349876"},
+        {"role": "agent", "contains": "full name"},
+        {"role": "user", "text": "Patricia Ann Miller."},
+        {"role": "agent", "contains": "phone"},
+        {"role": "user", "text": "(555) 222-1111."},
+        {"role": "agent", "contains": "description"},
+        {"role": "user", "text": "I had an allergic reaction to medication that was prescribed by my doctor. I developed severe hives and had to go to the urgent care clinic for treatment including an epinephrine injection and antihistamines."}
+      ],
+      "expected_output": {
+        "claim_type": "health",
+        "date_of_incident": "2024-03-30",
+        "policy_number": "HTH12349876",
+        "claimant_name": "Patricia Ann Miller",
+        "contact_phone": "(555) 222-1111",
+        "incident_description": "Allergic reaction to medication, urgent care visit for epinephrine and antihistamines"
+      },
+      "validations": {
+        "all_top_level_answered": true,
+        "all_branch_answered": false,
+        "no_ambiguity": true,
+        "complete": false,
+        "clarifications_needed": ["policy_number"]
+      }
+    },
+    {
+      "id": "multiple_clarifications_needed",
+      "name": "Multiple Clarifications Needed",
+      "description": "User provides several vague answers requiring multiple rounds of clarification",
+      "turns": [
+        {"role": "agent", "contains": "what type"},
+        {"role": "user", "text": "I'm not sure, maybe property?"},
+        {"role": "agent", "contains": "auto, property, or health"},
+        {"role": "user", "text": "Yes, it's a property claim."},
+        {"role": "agent", "contains": "when did"},
+        {"role": "user", "text": "A while ago."},
+        {"role": "agent", "contains": "specific date"},
+        {"role": "user", "text": "It was December 15, 2023."},
+        {"role": "agent", "contains": "policy number"},
+        {"role": "user", "text": "XY"},
+        {"role": "agent", "contains": "8 to 12"},
+        {"role": "user", "text": "Found it, it's PROP8877665."},
+        {"role": "agent", "contains": "full name"},
+        {"role": "user", "text": "Garcia"},
+        {"role": "agent", "contains": "first and last"},
+        {"role": "user", "text": "Maria Isabel Garcia."},
+        {"role": "agent", "contains": "phone"},
+        {"role": "user", "text": "55512"},
+        {"role": "agent", "contains": "valid phone"},
+        {"role": "user", "text": "(555) 123-9876."},
+        {"role": "agent", "contains": "description"},
+        {"role": "user", "text": "There was a fire in my kitchen that spread to the living room. The fire department responded and put it out, but there is extensive smoke and fire damage to the kitchen cabinets, countertops, appliances, and living room furniture and carpet."}
+      ],
+      "expected_output": {
+        "claim_type": "property",
+        "date_of_incident": "2023-12-15",
+        "policy_number": "PROP8877665",
+        "claimant_name": "Maria Isabel Garcia",
+        "contact_phone": "(555) 123-9876",
+        "incident_description": "Kitchen fire spread to living room, smoke and fire damage to cabinets, countertops, appliances, furniture, carpet"
+      },
+      "validations": {
+        "all_top_level_answered": true,
+        "all_branch_answered": false,
+        "no_ambiguity": true,
+        "complete": false,
+        "clarifications_needed": ["claim_type", "incident_date", "policy_number", "claimant_name", "contact_phone"]
+      }
+    }
+  ]
+}

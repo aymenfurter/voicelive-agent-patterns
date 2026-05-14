@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Voice Live API — Orchestration Patterns</title><link>/</link><description>Recent content on Voice Live API — Orchestration Patterns</description><generator>Hugo</generator><language>en-us</language><atom:link href="/index.xml" rel="self" type="application/rss+xml"/><item><title>App vs Developer mode</title><link>/app-mode/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/app-mode/</guid><description>&lt;p>The same call, in real time, can be rendered in two completely different
+ways. The mode toggle in the top bar swaps the layout. It does not open
+a new session, restart the WebSocket, or change anything on the backend.&lt;/p>
+&lt;h2 id="developer-mode">Developer mode&lt;/h2>
+&lt;p>The default view. Three columns: transcript on the left, state /
+flow / system prompt in the middle, events on the right. This is the view
+you build the patterns with.&lt;/p></description></item><item><title>Architecture</title><link>/architecture/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/architecture/</guid><description>&lt;p>The sample splits into three independent processes so each concern can
+be deployed on its own. The frontend talks WebSocket to the backend.
+The backend talks WebSocket to Azure and HTTPS to the question service.&lt;/p>
+&lt;figure class="shot">
+ &lt;a href="/img/01-developer-mode-initial.png" target="_blank" rel="noopener">
+ &lt;img src="/img/01-developer-mode-initial.png" alt="Developer mode landing screen with the three status pills (Frontend, Backend, Q-Service) all green." loading="lazy" />
+ &lt;/a>
+ &lt;figcaption class="shot__cap">Developer mode shows process health for all three components in the bottom status bar.&lt;/figcaption>
+&lt;/figure>
+
+&lt;h2 id="the-three-processes">The three processes&lt;/h2>
+&lt;table>
+ &lt;thead>
+ &lt;tr>
+ &lt;th>Process&lt;/th>
+ &lt;th>Tech&lt;/th>
+ &lt;th>Responsibility&lt;/th>
+ &lt;/tr>
+ &lt;/thead>
+ &lt;tbody>
+ &lt;tr>
+ &lt;td>Frontend&lt;/td>
+ &lt;td>Vite + React + TypeScript&lt;/td>
+ &lt;td>Captures microphone audio, plays back assistant audio, renders the timeline / data / flow views.&lt;/td>
+ &lt;/tr>
+ &lt;tr>
+ &lt;td>Backend&lt;/td>
+ &lt;td>Flask + flask-sock + gevent&lt;/td>
+ &lt;td>One WebSocket per call. Bridges browser audio to the Voice Live API and emits structured events.&lt;/td>
+ &lt;/tr>
+ &lt;tr>
+ &lt;td>Question service&lt;/td>
+ &lt;td>Flask&lt;/td>
+ &lt;td>Owns the intake catalog and answer validation. Stateless HTTPS API.&lt;/td>
+ &lt;/tr>
+ &lt;/tbody>
+&lt;/table>
+&lt;h2 id="why-a-shared-asyncio-loop">Why a shared asyncio loop&lt;/h2>
+&lt;p>Gunicorn with gevent workers cannot directly host an asyncio session. The
+backend solves this with one shared event loop running on a native
+(non-monkey-patched) thread. Every WebSocket handler schedules its
+&lt;code>run_azure_session&lt;/code> coroutine onto that loop with &lt;code>asyncio.run_coroutine_threadsafe&lt;/code>.&lt;/p></description></item><item><title>Evals</title><link>/evals/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/evals/</guid><description>&lt;h2 id="why-a-voice-eval-needs-more-than-a-transcript-test">Why a voice eval needs more than a transcript test&lt;/h2>
+&lt;p>A text agent eval can usually get away with one prompt and one assertion: did the model call the right tool with the right arguments. That works less well once you put audio between the user and the model. The same script said with background noise, on a phone-bandwidth codec, by a caller who hesitates mid-sentence, becomes a different input. And once a turn becomes a multi-turn conversation, the model has to keep state, recover from mishearings, and avoid asking the same question twice.&lt;/p></description></item><item><title>Events &amp; compaction</title><link>/events-compaction/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/events-compaction/</guid><description>&lt;p>The backend never sends raw Azure events to the browser. It maps them
+through &lt;code>event_mapper.py&lt;/code> into a small friendly vocabulary, attaches
+domain events of its own (handoffs, supervisor consultations, prompt
+updates, compaction), and ships the lot as &lt;code>OutboundEvent&lt;/code>s.&lt;/p>
+&lt;h2 id="the-event-vocabulary">The event vocabulary&lt;/h2>
+&lt;p>The Azure-to-client translation is a flat dictionary.&lt;/p>
+&lt;figure class="coderef">
+ &lt;figcaption class="coderef__cap">
+ &lt;span class="coderef__title">From Azure event names to client event types&lt;/span>
+ &lt;a class="coderef__path" href="https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/event_mapper.py#L9-L25" target="_blank" rel="noopener">
+ &lt;code>backend/event_mapper.py&lt;/code>
+ &lt;span class="coderef__lines">L9–L25&lt;/span>
+ &lt;/a>
+ &lt;/figcaption>
+ &lt;div class="coderef__body" data-start="9">
+&lt;div class="highlight">&lt;div style="color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2;">
+&lt;table style="border-spacing:0;padding:0;margin:0;border:0;">&lt;tr>&lt;td style="vertical-align:top;padding:0;margin:0;border:0;">
+&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2;">&lt;code>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f"> 9
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">10
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">11
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">12
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">13
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">14
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">15
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">16
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">17
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">18
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">19
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">20
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">21
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">22
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">23
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">24
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">25
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2;">&lt;code class="language-python" data-lang="python">&lt;span style="display:flex;">&lt;span>_TYPE_MAP &lt;span style="color:#f92672">=&lt;/span> {
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;session.created&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;session.created&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;session.updated&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;session.updated&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;input_audio_buffer.speech_started&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;audio.started&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;input_audio_buffer.speech_stopped&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;audio.stopped&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;response.created&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;response.created&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;response.audio.delta&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;audio.delta&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;response.audio.done&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;audio.done&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;response.audio_transcript.delta&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;transcript.delta&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;response.audio_transcript.done&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;transcript.done&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;response.text.delta&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;text.delta&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;response.text.done&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;text.done&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;response.function_call_arguments.delta&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;tool.arguments.delta&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;response.function_call_arguments.done&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;tool.called&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;response.done&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;response.done&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;error&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;error&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>}&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>
+ &lt;/div>
+&lt;/figure>
+
+&lt;p>On top of that, the patterns and the session loop emit:&lt;/p></description></item><item><title>Integration guide</title><link>/integration/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/integration/</guid><description>&lt;p>The bundled question service is a placeholder. It hosts the intake
+catalog and an answer validator so the demo runs out of the box, but in
+your build it will be replaced by whatever already owns your business
+data: a CRM, a policy admin system, an EHR, an internal microservice,
+or a stack of them. This page walks you through the two seams the
+sample is designed around.&lt;/p>
+&lt;h2 id="seam-1-replace-the-question-service">Seam 1: replace the question service&lt;/h2>
+&lt;p>The backend talks to the question service through a single thin module:
+three async functions, one HTTP base URL.&lt;/p></description></item><item><title>Origins &amp; lineage</title><link>/origins/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/origins/</guid><description>&lt;h2 id="the-upstream-reference">The upstream reference&lt;/h2>
+&lt;p>The patterns are not invented here. They come straight from
+&lt;a href="https://github.com/openai/openai-realtime-agents">&lt;code>openai/openai-realtime-agents&lt;/code>&lt;/a>,
+a Next.js / TypeScript demo from OpenAI that introduced both:&lt;/p>
+&lt;ul>
+&lt;li>Chat-Supervisor. A low-latency realtime &amp;ldquo;chat&amp;rdquo; agent paired with a
+smarter text-only supervisor (&lt;code>gpt-4.1&lt;/code>) that handles tool calls and
+high-stakes reasoning.&lt;/li>
+&lt;li>Sequential Handoff. A graph of specialist agents that hand the caller
+off to one another via tool calls, all on a single realtime session.
+Inspired by &lt;a href="https://github.com/openai/swarm">OpenAI Swarm&lt;/a>.&lt;/li>
+&lt;/ul>
+&lt;p>If you have not read the upstream README, do that first. The why and the
+benefits of each pattern are explained there in detail. This sample
+assumes you understand them and shows how to build them on Azure.&lt;/p></description></item><item><title>Pattern 1 — Chat-Supervisor</title><link>/chat-supervisor/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/chat-supervisor/</guid><description>&lt;p>Chat-Supervisor is the simpler of the two patterns. It keeps the voice
+contract small (one agent, one persona, one system prompt) and shoves
+all the &amp;ldquo;should I accept this answer?&amp;rdquo; and &amp;ldquo;is this claim complete?&amp;rdquo;
+decisions out to a text model that the user never hears.&lt;/p>
+&lt;figure class="shot">
+ &lt;a href="/img/03-chat-supervisor-conversation.png" target="_blank" rel="noopener">
+ &lt;img src="/img/03-chat-supervisor-conversation.png" alt="Chat-Supervisor mid-conversation: Aria has greeted the caller, asked about the incident date, and is asking for the location." loading="lazy" />
+ &lt;/a>
+ &lt;figcaption class="shot__cap">Aria, the realtime voice agent, drives the entire conversation.&lt;/figcaption>
+&lt;/figure>
+
+&lt;h2 id="the-voice-agent">The voice agent&lt;/h2>
+&lt;p>There is exactly one prompt. It tells Aria how to behave, when to call
+tools, and (this part matters) that she must never invent claim numbers
+or policy details on her own.&lt;/p></description></item><item><title>Pattern 2 — Sequential Handoff</title><link>/sequential-handoff/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/sequential-handoff/</guid><description>&lt;p>Sequential Handoff shows a workflow where the caller is explicitly
+moved between specialists (&lt;code>greeter&lt;/code>, &lt;code>top_level_qa&lt;/code>, &lt;code>auto_claims&lt;/code>,
+&lt;code>property_claims&lt;/code>, &lt;code>health_claims&lt;/code>, and &lt;code>summary&lt;/code>), but where each
+&amp;ldquo;agent&amp;rdquo; is just a different prompt and tool list applied to the same
+Voice Live API session.&lt;/p>
+&lt;figure class="shot">
+ &lt;a href="/img/11-sequential-handoff-initial.png" target="_blank" rel="noopener">
+ &lt;img src="/img/11-sequential-handoff-initial.png" alt="Sequential handoff initial state. Greeter is the active agent and the agent progress list shows all six agents." loading="lazy" />
+ &lt;/a>
+ &lt;figcaption class="shot__cap">Every call starts with the greeter. The Agent Progress list previews the chain to come.&lt;/figcaption>
+&lt;/figure>
+
+&lt;h2 id="agents-are-just-configs">Agents are just configs&lt;/h2>
+&lt;p>An agent is a small dataclass with three things: a name, a system prompt,
+and a list of allowed handoff targets. Specialists also carry the business
+tools (&lt;code>validate_answer&lt;/code>, &lt;code>get_next_questions&lt;/code>, &lt;code>submit_claim_data&lt;/code>).&lt;/p></description></item><item><title>Session lifecycle</title><link>/session-lifecycle/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/session-lifecycle/</guid><description>&lt;p>A Voice Live API session is a single bidirectional WebSocket between the
+backend and Azure. It is opened once per call, configured once with a
+&lt;code>session.update&lt;/code>, and then carries audio in both directions plus a stream
+of event messages until the user hangs up.&lt;/p>
+&lt;p>The sample uses the official &lt;code>azure.ai.voicelive.aio&lt;/code> SDK. Opening a
+session is one async context manager.&lt;/p>
+&lt;figure class="coderef">
+ &lt;figcaption class="coderef__cap">
+ &lt;span class="coderef__title">One Voice Live API session per call, configured by the active pattern&lt;/span>
+ &lt;a class="coderef__path" href="https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/azure_session.py#L48-L98" target="_blank" rel="noopener">
+ &lt;code>backend/azure_session.py&lt;/code>
+ &lt;span class="coderef__lines">L48–L98&lt;/span>
+ &lt;/a>
+ &lt;/figcaption>
+ &lt;div class="coderef__body" data-start="48">
+&lt;div class="highlight">&lt;div style="color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2;">
+&lt;table style="border-spacing:0;padding:0;margin:0;border:0;">&lt;tr>&lt;td style="vertical-align:top;padding:0;margin:0;border:0;">
+&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2;">&lt;code>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">48
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">49
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">50
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">51
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">52
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">53
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">54
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">55
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">56
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">57
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">58
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">59
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">60
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">61
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">62
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">63
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">64
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">65
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">66
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">67
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">68
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">69
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">70
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">71
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">72
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">73
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">74
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">75
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">76
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">77
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">78
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">79
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">80
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">81
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">82
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">83
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">84
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">85
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">86
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">87
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">88
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">89
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">90
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">91
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">92
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">93
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">94
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">95
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">96
+&lt;/span>&lt;span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:0.4em;padding:0 0.4em 0 0.4em;color:#7f7f7f">97
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td style="vertical-align:top;padding:0;margin:0;border:0;;width:100%">
+&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2;">&lt;code class="language-python" data-lang="python">&lt;span style="display:flex;">&lt;span>&lt;span style="color:#66d9ef">async&lt;/span> &lt;span style="color:#66d9ef">def&lt;/span> &lt;span style="color:#a6e22e">run_azure_session&lt;/span>(
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> pattern: OrchestrationPattern,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> inbound: queue&lt;span style="color:#f92672">.&lt;/span>Queue,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> outbound: queue&lt;span style="color:#f92672">.&lt;/span>Queue,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> ready: threading&lt;span style="color:#f92672">.&lt;/span>Event,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> done: threading&lt;span style="color:#f92672">.&lt;/span>Event,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> session_config: dict &lt;span style="color:#f92672">|&lt;/span> &lt;span style="color:#66d9ef">None&lt;/span> &lt;span style="color:#f92672">=&lt;/span> &lt;span style="color:#66d9ef">None&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>) &lt;span style="color:#f92672">-&amp;gt;&lt;/span> &lt;span style="color:#66d9ef">None&lt;/span>:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;&amp;#34;&amp;#34;Drive a single Voice Live API session until shutdown.&amp;#34;&amp;#34;&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> credential &lt;span style="color:#f92672">=&lt;/span> voice_credential()
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> model &lt;span style="color:#f92672">=&lt;/span> (session_config &lt;span style="color:#f92672">or&lt;/span> {})&lt;span style="color:#f92672">.&lt;/span>get(&lt;span style="color:#e6db74">&amp;#34;model&amp;#34;&lt;/span>) &lt;span style="color:#f92672">or&lt;/span> Config&lt;span style="color:#f92672">.&lt;/span>OPENAI_DEPLOYMENT
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> session_request &lt;span style="color:#f92672">=&lt;/span> build_session_request(pattern, session_config)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> strategy &lt;span style="color:#f92672">=&lt;/span> make_strategy((session_config &lt;span style="color:#f92672">or&lt;/span> {})&lt;span style="color:#f92672">.&lt;/span>get(&lt;span style="color:#e6db74">&amp;#34;compactionStrategy&amp;#34;&lt;/span>))
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">async&lt;/span> &lt;span style="color:#66d9ef">with&lt;/span> connect(
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> endpoint&lt;span style="color:#f92672">=&lt;/span>Config&lt;span style="color:#f92672">.&lt;/span>VOICE_LIVE_API_ENDPOINT,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> credential&lt;span style="color:#f92672">=&lt;/span>credential,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> model&lt;span style="color:#f92672">=&lt;/span>model,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> ) &lt;span style="color:#66d9ef">as&lt;/span> connection:
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">await&lt;/span> connection&lt;span style="color:#f92672">.&lt;/span>send(ClientEventSessionUpdate(session&lt;span style="color:#f92672">=&lt;/span>session_request))
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> outbound&lt;span style="color:#f92672">.&lt;/span>put(OutboundEvent(type&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;session.created&amp;#34;&lt;/span>, data&lt;span style="color:#f92672">=&lt;/span>{&lt;span style="color:#e6db74">&amp;#34;pattern&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;active&amp;#34;&lt;/span>}))
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> outbound&lt;span style="color:#f92672">.&lt;/span>put(OutboundEvent(type&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#e6db74">&amp;#34;session.prompt_updated&amp;#34;&lt;/span>, data&lt;span style="color:#f92672">=&lt;/span>{
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;agent&amp;#34;&lt;/span>: pattern&lt;span style="color:#f92672">.&lt;/span>current_agent_name,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;prompt&amp;#34;&lt;/span>: pattern&lt;span style="color:#f92672">.&lt;/span>get_system_prompt(),
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;reason&amp;#34;&lt;/span>: &lt;span style="color:#e6db74">&amp;#34;Session started&amp;#34;&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#e6db74">&amp;#34;tools&amp;#34;&lt;/span>: [t&lt;span style="color:#f92672">.&lt;/span>get(&lt;span style="color:#e6db74">&amp;#34;name&amp;#34;&lt;/span>, &lt;span style="color:#e6db74">&amp;#34;&amp;#34;&lt;/span>) &lt;span style="color:#66d9ef">for&lt;/span> t &lt;span style="color:#f92672">in&lt;/span> pattern&lt;span style="color:#f92672">.&lt;/span>get_tools()],
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> }))
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">await&lt;/span> pattern&lt;span style="color:#f92672">.&lt;/span>on_event(&lt;span style="color:#e6db74">&amp;#34;session.created&amp;#34;&lt;/span>, {})
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> _drain_pattern_events(pattern, outbound)
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> ready&lt;span style="color:#f92672">.&lt;/span>set()
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> shutdown &lt;span style="color:#f92672">=&lt;/span> asyncio&lt;span style="color:#f92672">.&lt;/span>Event()
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> conversation_item_ids: list[str] &lt;span style="color:#f92672">=&lt;/span> []
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> &lt;span style="color:#66d9ef">await&lt;/span> asyncio&lt;span style="color:#f92672">.&lt;/span>gather(
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> _read_from_browser(connection, inbound, outbound, shutdown),
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> _read_from_azure(
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> connection, pattern, outbound, shutdown,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> conversation_item_ids, strategy,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> ),
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> return_exceptions&lt;span style="color:#f92672">=&lt;/span>&lt;span style="color:#66d9ef">True&lt;/span>,
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span> )
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># ---------------------------------------------------------------------------&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># Inbound: browser -&amp;gt; Azure&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>&lt;span style="color:#75715e"># ---------------------------------------------------------------------------&lt;/span>
+&lt;/span>&lt;/span>&lt;span style="display:flex;">&lt;span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>
+ &lt;/div>
+&lt;/figure>
+
+&lt;p>Once &lt;code>connect()&lt;/code> returns, two coroutines run concurrently for the
+lifetime of the call. &lt;code>_read_from_browser&lt;/code> pulls inbound audio bytes
+or control JSON off the thread-safe queue and forwards them to Azure.
+&lt;code>_read_from_azure&lt;/code> consumes events from Azure, maps them to client event
+types, and pushes them onto the outbound queue.&lt;/p></description></item><item><title>Validation flow</title><link>/validation/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/validation/</guid><description>&lt;p>The validation flow is the most concrete demo of why this sample uses
+two LLMs. The realtime model is great at speaking, but it should not be
+the sole judge of &amp;ldquo;is this answer specific enough to record?&amp;rdquo;. That
+decision belongs to a deterministic validator, with an LLM judge as a
+tiebreaker.&lt;/p>
+&lt;h2 id="the-trigger-a-vague-answer">The trigger: a vague answer&lt;/h2>
+&lt;p>Open the app in &lt;strong>Text Mode&lt;/strong>, start a Chat-Supervisor session, and
+answer the incident date with something like &lt;em>&amp;ldquo;yesterday around 3pm&amp;rdquo;&lt;/em>.
+The question service rejects it immediately.&lt;/p></description></item></channel></rss>

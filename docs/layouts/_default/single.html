@@ -1,0 +1,13 @@
+{{ define "main" }}
+<article class="doc">
+  <header class="doc__header">
+    {{ with .Params.eyebrow }}<div class="doc__eyebrow">{{ . }}</div>{{ end }}
+    <h1 class="doc__title">{{ .Title }}</h1>
+    {{ with .Params.summary }}<p class="doc__lead">{{ . }}</p>{{ end }}
+  </header>
+  <div class="doc__body">
+    {{ .Content }}
+  </div>
+  {{ partial "pager.html" . }}
+</article>
+{{ end }}
