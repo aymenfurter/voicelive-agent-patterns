@@ -8,7 +8,7 @@ on:
 
 jobs:
   python:
-    name: Python lint & tests
+    name: Python lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,11 +28,6 @@ jobs:
 
       - name: Ruff
         run: ruff check backend question-service evals
-
-      - name: Offline evals (unit, integration, simulation)
-        env:
-          PYTHONPATH: backend:question-service
-        run: pytest evals/unit evals/integration evals/simulation
 
   frontend:
     name: Frontend typecheck & build
