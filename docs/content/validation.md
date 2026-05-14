@@ -68,6 +68,7 @@ sequenceDiagram
   participant B as Backend (chat-supervisor pattern)
   participant Q as Question Service
   participant S as Supervisor (gpt-4.1)
+  participant F as Frontend
 
   V->>B: validate_answer{question_id: incident_date, answer: "yesterday around 3pm"}
   B->>Q: POST /validate

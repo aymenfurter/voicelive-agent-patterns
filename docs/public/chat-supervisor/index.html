@@ -203,6 +203,7 @@ sequenceDiagram
   participant B as Backend
   participant Q as Question Service
   participant S as Supervisor (gpt-4.1)
+  participant F as Frontend
 
   U->>V: "It happened a few days ago."
   V->>B: function_call validate_answer{question_id, answer}
