@@ -1,10 +1,7 @@
 """Integration tests for session completeness checking."""
 
 import pytest
-
-from validator import validate_answer
-from questions_data import TOP_LEVEL_QUESTIONS, BRANCH_QUESTIONS
-
+from questions_data import BRANCH_QUESTIONS, TOP_LEVEL_QUESTIONS
 
 pytestmark = pytest.mark.walk
 
@@ -221,6 +218,7 @@ class TestMissingAnswersReported:
         new_missing = checker.get_missing_questions()
         # Now includes branch questions too
         assert "claim_type" not in new_missing
+        assert len(new_missing) != initial_missing
 
     def test_complete_session_has_no_missing(self, checker):
         all_answers = {

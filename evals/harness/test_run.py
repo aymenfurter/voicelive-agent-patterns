@@ -8,8 +8,8 @@ import logging
 import pytest
 
 from evals.harness.run_harness import (
-    EpisodeResult,
     PERSONAS,
+    EpisodeResult,
     grade_episode,
     run_multi_turn_episode,
 )

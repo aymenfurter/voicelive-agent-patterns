@@ -1,10 +1,8 @@
 """Unit tests for answer validation logic."""
 
 import pytest
-
-from validator import ValidationResult, validate_answer
-from questions_data import TOP_LEVEL_QUESTIONS, BRANCH_QUESTIONS
-
+from questions_data import BRANCH_QUESTIONS, TOP_LEVEL_QUESTIONS
+from validator import validate_answer
 
 pytestmark = pytest.mark.crawl
 

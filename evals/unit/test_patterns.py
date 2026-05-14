@@ -1,10 +1,9 @@
 """Unit tests for orchestration patterns configuration."""
 
 import json
+
 import pytest
-
 from patterns.base import OrchestrationPattern
-
 
 pytestmark = pytest.mark.crawl
 

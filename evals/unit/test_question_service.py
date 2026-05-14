@@ -1,10 +1,9 @@
 """Unit tests for the Question Service endpoints and data."""
 
 import os
+
 import pytest
-
 from questions_data import BRANCH_QUESTIONS, GLOSSARY, TOP_LEVEL_QUESTIONS
-
 
 pytestmark = pytest.mark.crawl
 
@@ -44,7 +43,7 @@ class TestBranchQuestions:
         assert category in BRANCH_QUESTIONS
 
     @pytest.mark.parametrize("category,expected_count", [
-        ("auto", 3),
+        ("auto", 6),
         ("property", 3),
         ("health", 3),
     ])
@@ -98,7 +97,6 @@ class TestFlaskApp:
 
     @pytest.fixture
     def client(self):
-        import importlib
         import sys
         # Ensure we import the question-service app, not backend app
         qs_path = os.path.join(os.path.dirname(__file__), '..', '..', 'question-service')
@@ -123,13 +121,17 @@ class TestFlaskApp:
         assert "questions" in data
         assert len(data["questions"]) == 6
 
-    @pytest.mark.parametrize("category", ["auto", "property", "health"])
-    def test_get_branch_questions(self, client, category):
+    @pytest.mark.parametrize("category,expected_count", [
+        ("auto", 6),
+        ("property", 3),
+        ("health", 3),
+    ])
+    def test_get_branch_questions(self, client, category, expected_count):
         response = client.get(f"/questions/{category}")
         assert response.status_code == 200
         data = response.get_json()
         assert data["category"] == category
-        assert len(data["questions"]) == 3
+        assert len(data["questions"]) == expected_count
 
     def test_invalid_category_returns_404(self, client):
         response = client.get("/questions/fire")

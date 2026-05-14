@@ -5,11 +5,10 @@ as a proxy for audio interactions with the Voice Live API.
 """
 
 import time
+
 import pytest
-
+from questions_data import BRANCH_QUESTIONS, TOP_LEVEL_QUESTIONS
 from validator import validate_answer
-from questions_data import TOP_LEVEL_QUESTIONS, BRANCH_QUESTIONS
-
 
 pytestmark = [pytest.mark.run, pytest.mark.azure]
 

@@ -12,28 +12,26 @@ import json
 import logging
 import os
 import time
-from typing import Any
 
 import httpx
 import pytest
-
-from azure.identity.aio import DefaultAzureCredential
 from azure.ai.voicelive.aio import connect
 from azure.ai.voicelive.models import (
-    AzureSemanticVad,
-    AzureStandardVoice,
     AudioEchoCancellation,
     AudioNoiseReduction,
-    ClientEventSessionUpdate,
+    AzureSemanticVad,
+    AzureStandardVoice,
     ClientEventConversationItemCreate,
     ClientEventResponseCreate,
+    ClientEventSessionUpdate,
     FunctionCallOutputItem,
     FunctionTool,
+    InputTextContentPart,
     Modality,
     RequestSession,
-    InputTextContentPart,
     UserMessageItem,
 )
+from azure.identity.aio import DefaultAzureCredential
 
 logger = logging.getLogger(__name__)
 

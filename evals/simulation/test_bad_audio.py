@@ -6,10 +6,8 @@ Uses text transcript simulation as a proxy for actual audio.
 """
 
 import pytest
-
-from validator import validate_answer
 from questions_data import TOP_LEVEL_QUESTIONS
-
+from validator import validate_answer
 
 pytestmark = [pytest.mark.run, pytest.mark.azure]
 

@@ -3,7 +3,6 @@
 import re
 from dataclasses import dataclass
 
-
 VAGUE_QUANTIFIERS: list[str] = [
     "a few",
     "some",
@@ -118,7 +117,8 @@ def _validate_date(answer: str, criteria: dict) -> ValidationResult:
         r"\d{1,2}(st|nd|rd|th)?\s+(of\s+)?(january|february|march|april|may|june|july|august|september|october|november|december),?\s*\d{2,4}",
         r"(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\.?\s+\d{1,2}(st|nd|rd|th)?,?\s*\d{2,4}",
         r"\d{4}[/\-\.]\d{1,2}[/\-\.]\d{1,2}",  # YYYY-MM-DD, YYYY.MM.DD
-        r"(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{4}",  # Month YYYY
+        r"(january|february|march|april|may|june|july|august|september|october|november|december)"
+        r"\s+\d{4}",  # Month YYYY
     ]
 
     for pattern in date_patterns:

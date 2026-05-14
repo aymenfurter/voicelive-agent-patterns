@@ -12,7 +12,6 @@ from evals.harness.walk_harness import (
     NOISE_CONDITIONS,
     run_walk_scenario,
     run_walk_scenario_all_conditions,
-    WalkResult,
 )
 
 logger = logging.getLogger(__name__)

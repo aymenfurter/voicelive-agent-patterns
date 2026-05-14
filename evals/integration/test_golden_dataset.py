@@ -2,11 +2,10 @@
 
 import json
 import os
+
 import pytest
-
+from questions_data import BRANCH_QUESTIONS, TOP_LEVEL_QUESTIONS
 from validator import validate_answer
-from questions_data import TOP_LEVEL_QUESTIONS, BRANCH_QUESTIONS
-
 
 pytestmark = pytest.mark.walk
 
@@ -249,9 +248,8 @@ class TestMultipleClarificationsScenario:
         scenario = next(s for s in scenarios if s["id"] == "multiple_clarifications_needed")
         user_answers = [t["text"] for t in scenario["turns"] if t["role"] == "user"]
         # "I'm not sure, maybe property?" - unclear phrasing but contains "property"
-        result = validate_answer(user_answers[0], acceptance_criteria_map["claim_type"])
-        # This may actually pass since it contains "property"
-        # The point is the agent still asks for confirmation
+        # This may actually pass since it contains "property"; the point is the agent still asks for confirmation
+        validate_answer(user_answers[0], acceptance_criteria_map["claim_type"])
 
     def test_vague_date_rejected(self, scenarios, acceptance_criteria_map):
         scenario = next(s for s in scenarios if s["id"] == "multiple_clarifications_needed")

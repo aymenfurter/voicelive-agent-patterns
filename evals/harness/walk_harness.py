@@ -10,21 +10,19 @@ import os
 from dataclasses import dataclass, field
 
 import httpx
-
 from azure.ai.voicelive.models import FunctionTool
 
 from evals.harness.base import (
+    SessionResult,
     add_noise,
-    chunk_audio,
     generate_tts_audio,
     phone_bandwidth_filter,
     run_single_turn,
-    SessionResult,
 )
 from evals.harness.graders import (
+    GradeResult,
     grade_tool_call,
     grade_transcript_contains,
-    GradeResult,
 )
 
 logger = logging.getLogger(__name__)

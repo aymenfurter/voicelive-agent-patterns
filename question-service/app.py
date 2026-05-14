@@ -2,7 +2,6 @@
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-
 from questions_data import BRANCH_QUESTIONS, GLOSSARY, TOP_LEVEL_QUESTIONS
 from validator import ValidationResult, validate_answer
 

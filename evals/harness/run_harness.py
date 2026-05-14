@@ -13,36 +13,31 @@ import time
 from dataclasses import dataclass, field
 
 import httpx
-from openai import AsyncAzureOpenAI
-from azure.identity import DefaultAzureCredential, get_bearer_token_provider
-
 from azure.ai.voicelive.aio import connect
 from azure.ai.voicelive.models import (
     AzureSemanticVad,
     AzureStandardVoice,
+    ClientEventConversationItemCreate,
     ClientEventInputAudioBufferAppend,
     ClientEventInputAudioBufferCommit,
     ClientEventResponseCreate,
     ClientEventSessionUpdate,
-    ClientEventConversationItemCreate,
     FunctionCallOutputItem,
     FunctionTool,
-    InputTextContentPart,
     Modality,
     RequestSession,
-    UserMessageItem,
 )
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from azure.identity.aio import DefaultAzureCredential as AsyncDefaultAzureCredential
+from openai import AsyncAzureOpenAI
 
 from evals.harness.base import (
     chunk_audio,
     generate_tts_audio,
-    SessionResult,
 )
 from evals.harness.graders import (
-    grade_instruction_following,
-    grade_tool_call,
     GradeResult,
+    grade_instruction_following,
 )
 
 logger = logging.getLogger(__name__)

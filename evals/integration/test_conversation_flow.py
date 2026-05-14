@@ -1,10 +1,8 @@
 """Integration tests for conversation flow quality."""
 
 import pytest
-
+from questions_data import TOP_LEVEL_QUESTIONS
 from validator import validate_answer
-from questions_data import TOP_LEVEL_QUESTIONS, BRANCH_QUESTIONS
-
 
 pytestmark = pytest.mark.walk
 
@@ -216,7 +214,6 @@ class TestHandlesCorrections:
 
     def test_correction_still_validates(self):
         criteria = TOP_LEVEL_QUESTIONS[3]["acceptance_criteria"]  # claimant_name
-        correction = "Actually, my name is Jonathan Michael Smith."
         # After extracting the corrected name, validation should pass
         # The correction contains a valid full name
         result = validate_answer("Jonathan Michael Smith", criteria)

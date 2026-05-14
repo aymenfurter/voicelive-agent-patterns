@@ -4,10 +4,6 @@ Tests the full backend app (Flask) with real WebSocket connections and
 the Question Service running as a real process.
 """
 
-import json
-import subprocess
-import sys
-import time
 
 import httpx
 import pytest
