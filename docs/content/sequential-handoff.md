@@ -61,6 +61,8 @@ sequenceDiagram
   participant V as Realtime model (gpt-realtime)
   participant B as Backend
   participant A as Azure Voice Live API
+  participant Q as Question Service
+  participant F as Frontend
 
   Note over V: Active prompt: greeter
   U->>V: "I need to file a claim."
@@ -75,7 +77,21 @@ sequenceDiagram
   U->>V: "It's an auto accident."
   V->>B: function_call transfer_to_auto_claims{reason}
   B->>A: same dance, with auto_claims prompt + tools
+  B-->>F: agent.handoff, session.prompt_updated
   Note over V: Active prompt: auto_claims
+
+  V->>B: function_call get_next_questions{claim_type:"auto"}
+  B->>Q: GET /questions/auto
+  Q-->>B: [{id, prompt, acceptance_criteria}, ...]
+  B->>A: ConversationItemCreate(FunctionCallOutput: questions)
+  A-->>U: "What's your vehicle make and model?"
+
+  U->>V: "2019 Honda Civic"
+  V->>B: function_call validate_answer{question_id, answer}
+  B->>Q: POST /validate {question_id, answer}
+  Q-->>B: {valid:true} | {valid:false, clarifying_prompt}
+  B->>A: ConversationItemCreate(FunctionCallOutput: validation)
+  B-->>F: tool.call, tool.result
 {{< /mermaid >}}
 
 ## Why this pattern
