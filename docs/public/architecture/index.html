@@ -1,6 +1,6 @@
 <!doctype html><html lang=en><head><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Architecture · Voice Live API — Orchestration Patterns</title>
 <meta name=description content="A code-driven walkthrough of agentic orchestration patterns built on top of the Azure Voice Live API."><link rel=stylesheet href=/css/app.css><link rel=preconnect href=https://fonts.googleapis.com><link rel=preconnect href=https://fonts.gstatic.com crossorigin><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel=stylesheet></head><body><header class=topbar><a class=topbar__brand href=/><span class=topbar__brand-text><span class=topbar__brand-name>Voice Live API</span>
-<span class=topbar__brand-sub>Orchestration Patterns</span></span></a><nav class=topbar__actions><a href=https://github.com/Azure-Samples/voicelive-agent-patterns target=_blank rel=noopener>GitHub</a></nav></header><div class=layout><aside class=sidebar><nav class=sidebar__nav><a class=sidebar__link href=/><span class=sidebar__link-num>01</span>
+<span class=topbar__brand-sub>Orchestration Patterns</span></span></a><nav class=topbar__actions><a href=https://github.com/aymenfurter/voicelive-agent-patterns target=_blank rel=noopener>GitHub</a></nav></header><div class=layout><aside class=sidebar><nav class=sidebar__nav><a class=sidebar__link href=/><span class=sidebar__link-num>01</span>
 <span>Introduction</span>
 </a><a class=sidebar__link href=/origins/><span class=sidebar__link-num>01</span>
 <span>Origins & Lineage</span>
@@ -27,7 +27,7 @@ The backend talks WebSocket to Azure and HTTPS to the question service.</p><figu
 backend solves this with one shared event loop running on a native
 (non-monkey-patched) thread. Every WebSocket handler schedules its
 <code>run_azure_session</code> coroutine onto that loop with <code>asyncio.run_coroutine_threadsafe</code>.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>A single asyncio loop, started lazily on a native thread</span>
-<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/event_loop.py#L24-L47 target=_blank rel=noopener><code>backend/event_loop.py</code>
+<a class=coderef__path href=https://github.com/aymenfurter/voicelive-agent-patterns/blob/main/backend/event_loop.py#L24-L47 target=_blank rel=noopener><code>backend/event_loop.py</code>
 <span class=coderef__lines>L24–L47</span></a></figcaption><div class=coderef__body data-start=24><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">24
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">25
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">26
@@ -78,7 +78,7 @@ backend solves this with one shared event loop running on a native
 </span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> _shared_loop</span></span></code></pre></td></tr></table></div></div></div></figure><p>The handler then bridges the gevent WebSocket and the asyncio session
 with two thread-safe queues: <code>inbound</code> for browser to Azure, <code>outbound</code>
 for Azure to browser.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>One WebSocket call → one Voice Live API session</span>
-<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/websocket_handler.py#L25-L80 target=_blank rel=noopener><code>backend/websocket_handler.py</code>
+<a class=coderef__path href=https://github.com/aymenfurter/voicelive-agent-patterns/blob/main/backend/websocket_handler.py#L25-L80 target=_blank rel=noopener><code>backend/websocket_handler.py</code>
 <span class=coderef__lines>L25–L80</span></a></figcaption><div class=coderef__body data-start=25><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">25
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">26
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">27
@@ -221,7 +221,7 @@ small typed envelope with a <code>type</code> (<code>transcript.done</code>, <co
 <code>agent.handoff</code>, <code>compaction.applied</code>, and so on) and a <code>data</code> payload.
 The full mapping from raw Azure event types to client types lives in
 <code>event_mapper.py</code>.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>Azure event names → friendly client event types</span>
-<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/event_mapper.py#L9-L25 target=_blank rel=noopener><code>backend/event_mapper.py</code>
+<a class=coderef__path href=https://github.com/aymenfurter/voicelive-agent-patterns/blob/main/backend/event_mapper.py#L9-L25 target=_blank rel=noopener><code>backend/event_mapper.py</code>
 <span class=coderef__lines>L9–L25</span></a></figcaption><div class=coderef__body data-start=9><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 9
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">10
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">11

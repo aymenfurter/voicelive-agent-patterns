@@ -157,4 +157,4 @@ pytest evals/e2e/ -v
 
 The framework does not test latency targets, does not test interruption handling, and does not yet model network jitter. Latency is recorded, but no test fails if it goes up; that is intentional, because Voice Live latency varies enough between runs that a strict threshold would be noisy. Interruption handling (the caller talking over the agent) is genuinely hard to script and is left for manual testing. If those matter for your deployment, those are the gaps to fill in next.
 
-The full methodology, including the rationale from the OpenAI guide, lives in [`evals/README.md`](https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/evals/README.md).
+The full methodology, including the rationale from the OpenAI guide, lives in [`evals/README.md`](https://github.com/aymenfurter/voicelive-agent-patterns/blob/main/evals/README.md).

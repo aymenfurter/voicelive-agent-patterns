@@ -55,7 +55,7 @@ updates, compaction), and ships the lot as &lt;code>OutboundEvent&lt;/code>s.&lt
 &lt;figure class="coderef">
  &lt;figcaption class="coderef__cap">
  &lt;span class="coderef__title">From Azure event names to client event types&lt;/span>
- &lt;a class="coderef__path" href="https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/event_mapper.py#L9-L25" target="_blank" rel="noopener">
+ &lt;a class="coderef__path" href="https://github.com/aymenfurter/voicelive-agent-patterns/blob/main/backend/event_mapper.py#L9-L25" target="_blank" rel="noopener">
  &lt;code>backend/event_mapper.py&lt;/code>
  &lt;span class="coderef__lines">L9–L25&lt;/span>
  &lt;/a>
@@ -164,7 +164,7 @@ session is one async context manager.&lt;/p>
 &lt;figure class="coderef">
  &lt;figcaption class="coderef__cap">
  &lt;span class="coderef__title">One Voice Live API session per call, configured by the active pattern&lt;/span>
- &lt;a class="coderef__path" href="https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/azure_session.py#L48-L98" target="_blank" rel="noopener">
+ &lt;a class="coderef__path" href="https://github.com/aymenfurter/voicelive-agent-patterns/blob/main/backend/azure_session.py#L48-L98" target="_blank" rel="noopener">
  &lt;code>backend/azure_session.py&lt;/code>
  &lt;span class="coderef__lines">L48–L98&lt;/span>
  &lt;/a>

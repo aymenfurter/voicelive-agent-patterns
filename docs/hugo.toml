@@ -6,7 +6,7 @@ disableKinds = ["taxonomy", "term"]
 
 [params]
   description = "A code-driven walkthrough of agentic orchestration patterns built on top of the Azure Voice Live API."
-  repo = "https://github.com/Azure-Samples/voicelive-agent-patterns"
+  repo = "https://github.com/aymenfurter/voicelive-agent-patterns"
 
 [markup]
   [markup.goldmark.renderer]

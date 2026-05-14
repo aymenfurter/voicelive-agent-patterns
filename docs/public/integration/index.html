@@ -1,6 +1,6 @@
 <!doctype html><html lang=en><head><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Integration guide · Voice Live API — Orchestration Patterns</title>
 <meta name=description content="A code-driven walkthrough of agentic orchestration patterns built on top of the Azure Voice Live API."><link rel=stylesheet href=/css/app.css><link rel=preconnect href=https://fonts.googleapis.com><link rel=preconnect href=https://fonts.gstatic.com crossorigin><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel=stylesheet></head><body><header class=topbar><a class=topbar__brand href=/><span class=topbar__brand-text><span class=topbar__brand-name>Voice Live API</span>
-<span class=topbar__brand-sub>Orchestration Patterns</span></span></a><nav class=topbar__actions><a href=https://github.com/Azure-Samples/voicelive-agent-patterns target=_blank rel=noopener>GitHub</a></nav></header><div class=layout><aside class=sidebar><nav class=sidebar__nav><a class=sidebar__link href=/><span class=sidebar__link-num>01</span>
+<span class=topbar__brand-sub>Orchestration Patterns</span></span></a><nav class=topbar__actions><a href=https://github.com/aymenfurter/voicelive-agent-patterns target=_blank rel=noopener>GitHub</a></nav></header><div class=layout><aside class=sidebar><nav class=sidebar__nav><a class=sidebar__link href=/><span class=sidebar__link-num>01</span>
 <span>Introduction</span>
 </a><a class=sidebar__link href=/origins/><span class=sidebar__link-num>01</span>
 <span>Origins & Lineage</span>
@@ -28,7 +28,7 @@ data: a CRM, a policy admin system, an EHR, an internal microservice,
 or a stack of them. This page walks you through the two seams the
 sample is designed around.</p><h2 id=seam-1-replace-the-question-service>Seam 1: replace the question service</h2><p>The backend talks to the question service through a single thin module:
 three async functions, one HTTP base URL.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>The entire backend → question-service contract</span>
-<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/question_client.py#L28-L73 target=_blank rel=noopener><code>backend/question_client.py</code>
+<a class=coderef__path href=https://github.com/aymenfurter/voicelive-agent-patterns/blob/main/backend/question_client.py#L28-L73 target=_blank rel=noopener><code>backend/question_client.py</code>
 <span class=coderef__lines>L28–L73</span></a></figcaption><div class=coderef__body data-start=28><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">28
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">29
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">30
@@ -132,7 +132,7 @@ a <code>reason</code> field will produce noticeably better LLM judgments.</div><
 <code>backend/patterns/</code> that subclasses <code>OrchestrationPattern</code>, decorate
 it, and the frontend pattern picker (and the <code>?pattern=</code> query string)
 discover it automatically.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>The pattern interface, in practice</span>
-<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/patterns/chat_supervisor.py#L83-L120 target=_blank rel=noopener><code>backend/patterns/chat_supervisor.py</code>
+<a class=coderef__path href=https://github.com/aymenfurter/voicelive-agent-patterns/blob/main/backend/patterns/chat_supervisor.py#L83-L120 target=_blank rel=noopener><code>backend/patterns/chat_supervisor.py</code>
 <span class=coderef__lines>L83–L120</span></a></figcaption><div class=coderef__body data-start=83><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 83
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 84
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 85
@@ -217,7 +217,7 @@ hooks into the lifecycle. Use <code>emit</code> to surface custom events to the
 UI.</li></ol><h2 id=surfacing-your-own-data-in-app-mode>Surfacing your own data in App mode</h2><p>Every event you <code>emit</code> reaches the frontend through the same WebSocket.
 To show a custom card in App mode, emit a <code>tool.result</code> (or your own
 event type) and add a renderer to <code>AppModeDataGrid.tsx</code>.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>The data grid is the App-mode rendering of tool results</span>
-<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/frontend/src/components/appMode/AppModeDataGrid.tsx#L1-L71 target=_blank rel=noopener><code>frontend/src/components/appMode/AppModeDataGrid.tsx</code>
+<a class=coderef__path href=https://github.com/aymenfurter/voicelive-agent-patterns/blob/main/frontend/src/components/appMode/AppModeDataGrid.tsx#L1-L71 target=_blank rel=noopener><code>frontend/src/components/appMode/AppModeDataGrid.tsx</code>
 <span class=coderef__lines>L1–L71</span></a></figcaption><div class=coderef__body data-start=1><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 1
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 2
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f"> 3

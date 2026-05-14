@@ -1,6 +1,6 @@
 <!doctype html><html lang=en><head><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Session lifecycle · Voice Live API — Orchestration Patterns</title>
 <meta name=description content="A code-driven walkthrough of agentic orchestration patterns built on top of the Azure Voice Live API."><link rel=stylesheet href=/css/app.css><link rel=preconnect href=https://fonts.googleapis.com><link rel=preconnect href=https://fonts.gstatic.com crossorigin><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel=stylesheet></head><body><header class=topbar><a class=topbar__brand href=/><span class=topbar__brand-text><span class=topbar__brand-name>Voice Live API</span>
-<span class=topbar__brand-sub>Orchestration Patterns</span></span></a><nav class=topbar__actions><a href=https://github.com/Azure-Samples/voicelive-agent-patterns target=_blank rel=noopener>GitHub</a></nav></header><div class=layout><aside class=sidebar><nav class=sidebar__nav><a class=sidebar__link href=/><span class=sidebar__link-num>01</span>
+<span class=topbar__brand-sub>Orchestration Patterns</span></span></a><nav class=topbar__actions><a href=https://github.com/aymenfurter/voicelive-agent-patterns target=_blank rel=noopener>GitHub</a></nav></header><div class=layout><aside class=sidebar><nav class=sidebar__nav><a class=sidebar__link href=/><span class=sidebar__link-num>01</span>
 <span>Introduction</span>
 </a><a class=sidebar__link href=/origins/><span class=sidebar__link-num>01</span>
 <span>Origins & Lineage</span>
@@ -26,7 +26,7 @@ backend and Azure. It is opened once per call, configured once with a
 <code>session.update</code>, and then carries audio in both directions plus a stream
 of event messages until the user hangs up.</p><p>The sample uses the official <code>azure.ai.voicelive.aio</code> SDK. Opening a
 session is one async context manager.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>One Voice Live API session per call, configured by the active pattern</span>
-<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/azure_session.py#L48-L98 target=_blank rel=noopener><code>backend/azure_session.py</code>
+<a class=coderef__path href=https://github.com/aymenfurter/voicelive-agent-patterns/blob/main/backend/azure_session.py#L48-L98 target=_blank rel=noopener><code>backend/azure_session.py</code>
 <span class=coderef__lines>L48–L98</span></a></figcaption><div class=coderef__body data-start=48><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">48
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">49
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">50
@@ -138,7 +138,7 @@ sequential pattern transferred from <code>greeter</code> to <code>top_level_qa</
 backend does not open a new WebSocket and it does not call <code>connect()</code>
 again. It sends a <code>session.update</code> over the existing connection with the
 new instructions and tools, then asks the model to respond.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>Handoff = ClientEventSessionUpdate on the same connection</span>
-<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/azure_session.py#L301-L336 target=_blank rel=noopener><code>backend/azure_session.py</code>
+<a class=coderef__path href=https://github.com/aymenfurter/voicelive-agent-patterns/blob/main/backend/azure_session.py#L301-L336 target=_blank rel=noopener><code>backend/azure_session.py</code>
 <span class=coderef__lines>L301–L336</span></a></figcaption><div class=coderef__body data-start=301><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">301
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">302
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">303
@@ -255,7 +255,7 @@ the active pattern&rsquo;s prompt and tools with runtime overrides for VAD
 mode, noise suppression, echo cancellation, voice, and temperature.
 Everything the user can twist in the <strong>Session Config</strong> panel routes
 through here.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>How runtime config layers on top of pattern defaults</span>
-<a class=coderef__path href=https://github.com/Azure-Samples/voicelive-agent-patterns/blob/main/backend/session_builder.py#L22-L80 target=_blank rel=noopener><code>backend/session_builder.py</code>
+<a class=coderef__path href=https://github.com/aymenfurter/voicelive-agent-patterns/blob/main/backend/session_builder.py#L22-L80 target=_blank rel=noopener><code>backend/session_builder.py</code>
 <span class=coderef__lines>L22–L80</span></a></figcaption><div class=coderef__body data-start=22><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">22
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">23
 </span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">24
