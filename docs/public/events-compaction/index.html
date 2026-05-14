@@ -14,6 +14,8 @@
 <span>Sequential Handoff</span>
 </a><a class=sidebar__link href=/validation/><span class=sidebar__link-num>06</span>
 <span>Validation Flow</span>
+</a><a class=sidebar__link href=/scaling/><span class=sidebar__link-num>06</span>
+<span>Tracking & Scaling</span>
 </a><a class="sidebar__link sidebar__link--active" href=/events-compaction/><span class=sidebar__link-num>07</span>
 <span>Events & Compaction</span>
 </a><a class=sidebar__link href=/app-mode/><span class=sidebar__link-num>08</span>
@@ -415,8 +417,8 @@ sequenceDiagram
 </pre></div></div><h2 id=picking-a-strategy>Picking a strategy</h2><table><thead><tr><th>Strategy</th><th>When to use</th></tr></thead><tbody><tr><td><code>off</code></td><td>Short calls, debugging, golden-path eval runs.</td></tr><tr><td><code>rolling_5</code> / <code>rolling_10</code></td><td>Predictable cap on items, regardless of token cost. Good for chatty domains where each turn is small.</td></tr><tr><td><code>token_budget_4k</code></td><td>Best when answers vary wildly in size — only acts when you actually approach the budget.</td></tr></tbody></table><aside class="callout callout--tip"><div class=callout__body>Compaction events are renderable in the timeline alongside everything else.
 A call that suddenly stops working can often be diagnosed by looking for an
 unexpected <code>compaction.applied</code> followed by an LLM that &ldquo;forgot&rdquo; something
-critical. Build that signal into your evals.</div></aside></div><nav class=pager><a class="pager__link pager__link--prev" href=/validation/><span class=pager__dir>← Previous</span>
-<span class=pager__name>Validation Flow</span>
+critical. Build that signal into your evals.</div></aside></div><nav class=pager><a class="pager__link pager__link--prev" href=/scaling/><span class=pager__dir>← Previous</span>
+<span class=pager__name>Tracking & Scaling</span>
 </a><a class="pager__link pager__link--next" href=/app-mode/><span class=pager__dir>Next →</span>
 <span class=pager__name>App vs Developer Mode</span></a></nav></article><footer class=docfoot><span>Built with Hugo · Source code references resolved at build time</span></footer></main></div><script type=module>
   import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';

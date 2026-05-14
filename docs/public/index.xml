@@ -284,7 +284,15 @@ session is one async context manager.&lt;/p>
 lifetime of the call. &lt;code>_read_from_browser&lt;/code> pulls inbound audio bytes
 or control JSON off the thread-safe queue and forwards them to Azure.
 &lt;code>_read_from_azure&lt;/code> consumes events from Azure, maps them to client event
-types, and pushes them onto the outbound queue.&lt;/p></description></item><item><title>Validation flow</title><link>/validation/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/validation/</guid><description>&lt;p>The validation flow is the most concrete demo of why this sample uses
+types, and pushes them onto the outbound queue.&lt;/p></description></item><item><title>Tracking answers &amp; scaling</title><link>/scaling/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/scaling/</guid><description>&lt;p>The two patterns differ in conversation flow but they track collected
+answers the same way. This page explains the shared bookkeeping, then
+calls out the choices that decide whether your prompts grow with the
+catalog or stay flat as you add more questions.&lt;/p>
+&lt;h2 id="where-answered-state-lives">Where answered state lives&lt;/h2>
+&lt;p>Each pattern instance owns a &lt;code>ClaimSession&lt;/code>. It is a plain dataclass with
+two fields: the chosen &lt;code>claim_type&lt;/code> and a &lt;code>collected_data&lt;/code> dict keyed by
+&lt;code>question_id&lt;/code>. There is no per-question scaffolding, no schema beyond the
+key name. One claim session lives for the duration of one WebSocket call.&lt;/p></description></item><item><title>Validation flow</title><link>/validation/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/validation/</guid><description>&lt;p>The validation flow is the most concrete demo of why this sample uses
 two LLMs. The realtime model is great at speaking, but it should not be
 the sole judge of &amp;ldquo;is this answer specific enough to record?&amp;rdquo;. That
 decision belongs to a deterministic validator, with an LLM judge as a

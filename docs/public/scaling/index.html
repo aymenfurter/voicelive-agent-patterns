@@ -1,0 +1,183 @@
+<!doctype html><html lang=en><head><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Tracking answers & scaling · Voice Live API — Orchestration Patterns</title>
+<meta name=description content="A code-driven walkthrough of agentic orchestration patterns built on top of the Azure Voice Live API."><link rel=stylesheet href=/css/app.css><link rel=preconnect href=https://fonts.googleapis.com><link rel=preconnect href=https://fonts.gstatic.com crossorigin><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel=stylesheet></head><body><header class=topbar><a class=topbar__brand href=/><span class=topbar__brand-text><span class=topbar__brand-name>Voice Live API</span>
+<span class=topbar__brand-sub>Orchestration Patterns</span></span></a><nav class=topbar__actions><a href=https://github.com/aymenfurter/voicelive-agent-patterns target=_blank rel=noopener>GitHub</a></nav></header><div class=layout><aside class=sidebar><nav class=sidebar__nav><a class=sidebar__link href=/><span class=sidebar__link-num>01</span>
+<span>Introduction</span>
+</a><a class=sidebar__link href=/origins/><span class=sidebar__link-num>01</span>
+<span>Origins & Lineage</span>
+</a><a class=sidebar__link href=/architecture/><span class=sidebar__link-num>02</span>
+<span>Architecture</span>
+</a><a class=sidebar__link href=/session-lifecycle/><span class=sidebar__link-num>03</span>
+<span>Session Lifecycle</span>
+</a><a class=sidebar__link href=/chat-supervisor/><span class=sidebar__link-num>04</span>
+<span>Chat-Supervisor</span>
+</a><a class=sidebar__link href=/sequential-handoff/><span class=sidebar__link-num>05</span>
+<span>Sequential Handoff</span>
+</a><a class=sidebar__link href=/validation/><span class=sidebar__link-num>06</span>
+<span>Validation Flow</span>
+</a><a class="sidebar__link sidebar__link--active" href=/scaling/><span class=sidebar__link-num>06</span>
+<span>Tracking & Scaling</span>
+</a><a class=sidebar__link href=/events-compaction/><span class=sidebar__link-num>07</span>
+<span>Events & Compaction</span>
+</a><a class=sidebar__link href=/app-mode/><span class=sidebar__link-num>08</span>
+<span>App vs Developer Mode</span>
+</a><a class=sidebar__link href=/evals/><span class=sidebar__link-num>08</span>
+<span>Evals</span>
+</a><a class=sidebar__link href=/integration/><span class=sidebar__link-num>09</span>
+<span>Integration Guide</span></a></nav></aside><main class=content><article class=doc><header class=doc__header><div class=doc__eyebrow>What grows, what stays flat</div><h1 class=doc__title>Tracking answers & scaling</h1></header><div class=doc__body><p>The two patterns differ in conversation flow but they track collected
+answers the same way. This page explains the shared bookkeeping, then
+calls out the choices that decide whether your prompts grow with the
+catalog or stay flat as you add more questions.</p><h2 id=where-answered-state-lives>Where answered state lives</h2><p>Each pattern instance owns a <code>ClaimSession</code>. It is a plain dataclass with
+two fields: the chosen <code>claim_type</code> and a <code>collected_data</code> dict keyed by
+<code>question_id</code>. There is no per-question scaffolding, no schema beyond the
+key name. One claim session lives for the duration of one WebSocket call.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>The whole answered-state model is a dict and two helpers</span>
+<a class=coderef__path href=https://github.com/aymenfurter/voicelive-agent-patterns/blob/main/backend/patterns/models.py#L10-L21 target=_blank rel=noopener><code>backend/patterns/models.py</code>
+<span class=coderef__lines>L10–L21</span></a></figcaption><div class=coderef__body data-start=10><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">10
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">11
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">12
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">13
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">14
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">15
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">16
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">17
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">18
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">19
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">20
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#66d9ef>class</span> <span style=color:#a6e22e>ClaimSession</span>:
+</span></span><span style=display:flex><span>    <span style=color:#e6db74>&#34;&#34;&#34;Encapsulates transactional state for a single claim intake conversation.&#34;&#34;&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    claim_type: str <span style=color:#f92672>|</span> <span style=color:#66d9ef>None</span> <span style=color:#f92672>=</span> <span style=color:#66d9ef>None</span>
+</span></span><span style=display:flex><span>    collected_data: dict[str, Any] <span style=color:#f92672>=</span> field(default_factory<span style=color:#f92672>=</span>dict)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>record_answer</span>(self, question_id: str, answer: str) <span style=color:#f92672>-&gt;</span> <span style=color:#66d9ef>None</span>:
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>collected_data[question_id] <span style=color:#f92672>=</span> answer
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>unanswered</span>(self, questions: list[dict[str, Any]]) <span style=color:#f92672>-&gt;</span> list[dict[str, Any]]:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> [q <span style=color:#66d9ef>for</span> q <span style=color:#f92672>in</span> questions <span style=color:#66d9ef>if</span> q<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;id&#34;</span>) <span style=color:#f92672>not</span> <span style=color:#f92672>in</span> self<span style=color:#f92672>.</span>collected_data]
+</span></span></code></pre></td></tr></table></div></div></div></figure><p>The catalog itself (questions, acceptance criteria, clarifying prompts)
+is <strong>not</strong> in <code>collected_data</code> and not in any prompt. It lives in the
+question service and is fetched on demand.</p><h2 id=only-validated-answers-are-recorded>Only validated answers are recorded</h2><p>The model never writes to <code>collected_data</code> directly. The only path in is
+the <code>validate_answer</code> tool, and only after the validator (or the
+supervisor, in chat-supervisor) accepts the answer.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>Sequential handoff: write only on a passing validation</span>
+<a class=coderef__path href=https://github.com/aymenfurter/voicelive-agent-patterns/blob/main/backend/patterns/sequential_handoff.py#L324-L332 target=_blank rel=noopener><code>backend/patterns/sequential_handoff.py</code>
+<span class=coderef__lines>L324–L332</span></a></figcaption><div class=coderef__body data-start=324><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">324
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">325
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">326
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">327
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">328
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">329
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">330
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">331
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>_handle_validate_answer</span>(self, arguments: dict[str, Any]) <span style=color:#f92672>-&gt;</span> dict[str, Any]:
+</span></span><span style=display:flex><span>        question_id <span style=color:#f92672>=</span> arguments<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;question_id&#34;</span>, <span style=color:#e6db74>&#34;&#34;</span>)
+</span></span><span style=display:flex><span>        answer <span style=color:#f92672>=</span> arguments<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;answer&#34;</span>, <span style=color:#e6db74>&#34;&#34;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        result <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> question_client<span style=color:#f92672>.</span>validate_answer(question_id, answer)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> result<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;valid&#34;</span>, <span style=color:#66d9ef>False</span>):
+</span></span><span style=display:flex><span>            self<span style=color:#f92672>.</span>_session<span style=color:#f92672>.</span>record_answer(question_id, answer)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> result
+</span></span></code></pre></td></tr></table></div></div></div></figure><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>Chat-supervisor: same gate, plus a supervisor second-opinion before recording</span>
+<a class=coderef__path href=https://github.com/aymenfurter/voicelive-agent-patterns/blob/main/backend/patterns/chat_supervisor.py#L134-L154 target=_blank rel=noopener><code>backend/patterns/chat_supervisor.py</code>
+<span class=coderef__lines>L134–L154</span></a></figcaption><div class=coderef__body data-start=134><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">134
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">135
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">136
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">137
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">138
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">139
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">140
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">141
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">142
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">143
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">144
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">145
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">146
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">147
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">148
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">149
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">150
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">151
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">152
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">153
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">154
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>_handle_validate_answer</span>(self, arguments: dict[str, Any]) <span style=color:#f92672>-&gt;</span> dict[str, Any]:
+</span></span><span style=display:flex><span>        question_id <span style=color:#f92672>=</span> arguments<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;question_id&#34;</span>, <span style=color:#e6db74>&#34;&#34;</span>)
+</span></span><span style=display:flex><span>        answer <span style=color:#f92672>=</span> arguments<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;answer&#34;</span>, <span style=color:#e6db74>&#34;&#34;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        result <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> question_client<span style=color:#f92672>.</span>validate_answer(question_id, answer)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> result<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;valid&#34;</span>):
+</span></span><span style=display:flex><span>            self<span style=color:#f92672>.</span>_session<span style=color:#f92672>.</span>record_answer(question_id, answer)
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> {<span style=color:#e6db74>&#34;valid&#34;</span>: <span style=color:#66d9ef>True</span>, <span style=color:#e6db74>&#34;message&#34;</span>: <span style=color:#e6db74>&#34;Answer accepted.&#34;</span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        supervisor <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> self<span style=color:#f92672>.</span>_consult(
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Validate this answer for an insurance claim intake question.</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Question ID: </span><span style=color:#e6db74>{</span>question_id<span style=color:#e6db74>}</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Answer: </span><span style=color:#e6db74>{</span>answer<span style=color:#e6db74>}</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>f</span><span style=color:#e6db74>&#34;Service validation result: </span><span style=color:#e6db74>{</span>json<span style=color:#f92672>.</span>dumps(result)<span style=color:#e6db74>}</span><span style=color:#ae81ff>\n\n</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#34;Determine if the answer is acceptable or needs clarification. &#34;</span>
+</span></span><span style=display:flex><span>            <span style=color:#e6db74>&#39;Return JSON: {&#34;valid&#34;: bool, &#34;message&#34;: str, &#34;suggestion&#34;: str|null}&#39;</span>
+</span></span><span style=display:flex><span>        )
+</span></span><span style=display:flex><span>        response <span style=color:#f92672>=</span> supervisor<span style=color:#f92672>.</span>to_dict()
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> response<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;valid&#34;</span>):
+</span></span><span style=display:flex><span>            self<span style=color:#f92672>.</span>_session<span style=color:#f92672>.</span>record_answer(question_id, answer)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> response</span></span></code></pre></td></tr></table></div></div></div></figure><p>The consequence: the server-side state is the source of truth. The
+realtime model can hallucinate, lose track, repeat itself, or get
+interrupted — none of that corrupts what the system has actually
+collected.</p><h2 id=how-the-agent-discovers-what-is-left>How the agent discovers what is left</h2><p>The model is never handed the catalog. It calls <code>get_next_questions</code>,
+which fetches the catalog from the question service, diffs against
+<code>collected_data</code>, and returns a small slice of what is still missing
+plus a <code>total_remaining</code> count.</p><figure class=coderef><figcaption class=coderef__cap><span class=coderef__title>Catalog stays out of the prompt — the tool returns the diff</span>
+<a class=coderef__path href=https://github.com/aymenfurter/voicelive-agent-patterns/blob/main/backend/patterns/sequential_handoff.py#L313-L322 target=_blank rel=noopener><code>backend/patterns/sequential_handoff.py</code>
+<span class=coderef__lines>L313–L322</span></a></figcaption><div class=coderef__body data-start=313><div class=highlight><div style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><table style=border-spacing:0;padding:0;margin:0;border:0><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">313
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">314
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">315
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">316
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">317
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">318
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">319
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">320
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">321
+</span><span style="white-space:pre;-webkit-user-select:none;user-select:none;margin-right:.4em;padding:0 .4em;color:#7f7f7f">322
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:2;-o-tab-size:2;tab-size:2><code class=language-python data-lang=python><span style=display:flex><span>    <span style=color:#66d9ef>async</span> <span style=color:#66d9ef>def</span> <span style=color:#a6e22e>_handle_get_next_questions</span>(self, arguments: dict[str, Any]) <span style=color:#f92672>-&gt;</span> dict[str, Any]:
+</span></span><span style=display:flex><span>        claim_type <span style=color:#f92672>=</span> arguments<span style=color:#f92672>.</span>get(<span style=color:#e6db74>&#34;claim_type&#34;</span>, <span style=color:#e6db74>&#34;auto&#34;</span>)
+</span></span><span style=display:flex><span>        self<span style=color:#f92672>.</span>_session<span style=color:#f92672>.</span>claim_type <span style=color:#f92672>=</span> claim_type
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        questions <span style=color:#f92672>=</span> <span style=color:#66d9ef>await</span> question_client<span style=color:#f92672>.</span>get_questions_by_category(claim_type)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> <span style=color:#f92672>not</span> questions:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>return</span> {<span style=color:#e6db74>&#34;questions&#34;</span>: [], <span style=color:#e6db74>&#34;message&#34;</span>: <span style=color:#e6db74>&#34;No questions available. Ask general intake questions.&#34;</span>}
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        unanswered <span style=color:#f92672>=</span> self<span style=color:#f92672>.</span>_session<span style=color:#f92672>.</span>unanswered(questions)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> {<span style=color:#e6db74>&#34;questions&#34;</span>: unanswered[:<span style=color:#ae81ff>2</span>], <span style=color:#e6db74>&#34;total_remaining&#34;</span>: len(unanswered)}</span></span></code></pre></td></tr></table></div></div></div></figure><p>The slice size is a deliberate scaling lever:</p><ul><li>Sequential handoff returns <strong>2</strong> unanswered at a time.</li><li>Chat-supervisor returns <strong>3</strong> unanswered at a time.</li></ul><p>The <code>total_remaining</code> field lets the model pace the conversation
+(&ldquo;a few more questions&rdquo; vs &ldquo;almost done&rdquo;) without ever seeing the
+full list.</p><h2 id=what-changes-when-the-catalog-grows>What changes when the catalog grows</h2><p>Adding more questions per branch only changes the question service.
+Neither pattern&rsquo;s prompt grows. The realtime model&rsquo;s per-turn token cost
+is bounded by the slice size, not by the catalog size.</p><table><thead><tr><th>Concern</th><th>Scales with</th><th>Notes</th></tr></thead><tbody><tr><td>Realtime prompt size</td><td>Number of agents (handoff) / single prompt (supervisor)</td><td>Catalog growth does <strong>not</strong> inflate the prompt in either pattern.</td></tr><tr><td>Per-turn tool payload</td><td>Slice size (2 or 3)</td><td>Constant. <code>get_next_questions</code> always returns at most N.</td></tr><tr><td>Validation latency</td><td>One HTTPS round-trip per answer</td><td>Independent of catalog size.</td></tr><tr><td>Conversation history</td><td>Number of turns</td><td>Mitigated by <a href=/events-compaction/>event compaction</a>. Becomes the dominant cost on long calls.</td></tr><tr><td>Question-service payload</td><td>Total catalog size per category</td><td>Server-side only; never reaches the model.</td></tr></tbody></table><h2 id=which-pattern-scales-better-with-what>Which pattern scales better with what</h2><p>Both patterns share the bookkeeping, so they scale identically along
+the &ldquo;more fact-collection questions per branch&rdquo; axis. They diverge on
+the other two axes:</p><p><strong>More divergent workflows (more claim types, different intake flows).</strong>
+Sequential handoff scales better. Each new flow is a new agent with its
+own prompt and its own scoped tool set. The greeter and <code>top_level_qa</code>
+agents stay unchanged. The realtime model sees one agent&rsquo;s prompt at a
+time, so adding a tenth claim type does not enlarge the prompt for an
+auto-claim caller.</p><p><strong>More nuanced judgment per answer (richer validation, soft rules,
+escalation policies).</strong> Chat-supervisor scales better. The voice prompt
+stays as it is; the supervisor system prompt and the consult prompts
+absorb the new logic. You can also swap or upgrade the supervisor model
+(<code>gpt-4.1</code> → something stronger) without touching the realtime side.</p><h2 id=things-to-watch-as-you-add-questions>Things to watch as you add questions</h2><ul><li><strong>Don&rsquo;t put the catalog in the prompt.</strong> Keep it in the service. Let
+the model query it. Both patterns model this correctly; copying
+questions into the system prompt is the most common regression.</li><li><strong>Always slice the unanswered list.</strong> Returning every missing question
+to the model defeats the bound. The constants live in
+<code>_handle_get_next_questions</code> for both patterns.</li><li><strong>Server holds the truth.</strong> <code>collected_data</code> lives in
+<code>ClaimSession</code>, not in the conversation transcript. Reconstructing
+state from transcripts at scale is brittle.</li><li><strong><code>record_answer</code> overwrites.</strong> A second valid answer for the same
+<code>question_id</code> replaces the first. If you need correction history,
+change the dict to a list and adjust <code>unanswered</code>.</li><li><strong>Compaction is required at the long end.</strong> The realtime conversation
+grows linearly with turns and is independent of how cleanly you track
+state. See <a href=/events-compaction/>Events & Compaction</a>.</li><li><strong>Per-question metadata belongs in the service.</strong> Acceptance criteria,
+clarifying prompts, and required types live next to the questions in
+<code>question-service/questions_data.py</code>. They are returned alongside each
+question so the model can phrase the next ask without needing them
+in its system prompt.</li><li><strong>Submission is a single call with the whole dict.</strong> <code>submit_claim_data</code>
+receives <code>collected_data</code> as one argument. As the catalog grows the
+payload grows linearly here — fine for an intake form, worth revisiting
+if a single submission would exceed a reasonable function-call payload.</li></ul><h2 id=where-to-go-next>Where to go next</h2><ul><li><a href=/validation/>Validation flow</a>. The contract <code>validate_answer</code> enforces before anything is recorded.</li><li><a href=/events-compaction/>Events & Compaction</a>. The other axis of scale: long calls, not big catalogs.</li><li><a href=/sequential-handoff/>Sequential handoff</a> and <a href=/chat-supervisor/>Chat-supervisor</a>. The two flows side by side.</li></ul></div><nav class=pager><a class="pager__link pager__link--prev" href=/validation/><span class=pager__dir>← Previous</span>
+<span class=pager__name>Validation Flow</span>
+</a><a class="pager__link pager__link--next" href=/events-compaction/><span class=pager__dir>Next →</span>
+<span class=pager__name>Events & Compaction</span></a></nav></article><footer class=docfoot><span>Built with Hugo · Source code references resolved at build time</span></footer></main></div></body></html>

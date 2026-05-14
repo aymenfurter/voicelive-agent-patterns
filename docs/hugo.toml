@@ -47,6 +47,10 @@ disableKinds = ["taxonomy", "term"]
     url = "/validation/"
     weight = 60
   [[menu.main]]
+    name = "Tracking & Scaling"
+    url = "/scaling/"
+    weight = 65
+  [[menu.main]]
     name = "Events & Compaction"
     url = "/events-compaction/"
     weight = 70
